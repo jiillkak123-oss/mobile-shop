@@ -1,0 +1,361 @@
+/* ============================================
+   ADMIN LOGIN PAGE STYLES
+   ============================================ */
+
+/* Global Resets */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* ============================================
+   CONTAINER & LAYOUT
+   ============================================ */
+
+.admin-login-container {
+  min-height: 100vh;
+  width: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Login Box */
+.login-box {
+  background: white;
+  padding: 45px;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 450px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 40px rgba(102, 126, 234, 0.2);
+  animation: slideIn 0.6s ease-out;
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Heading */
+.login-box h1 {
+  color: #667eea;
+  font-size: 32px;
+  margin-bottom: 10px;
+  text-align: center;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.login-box > p {
+  text-align: center;
+  color: #999;
+  font-size: 14px;
+  margin-bottom: 30px;
+}
+
+/* ============================================
+   ERROR MESSAGES
+   ============================================ */
+
+.error-message {
+  background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+  color: #721c24;
+  padding: 14px 16px;
+  border-radius: 8px;
+  margin-bottom: 22px;
+  border-left: 4px solid #dc3545;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  animation: slideDown 0.3s ease-out;
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.15);
+}
+
+.error-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================
+   FORM STYLES
+   ============================================ */
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.form-group {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: #333;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 13px 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 15px;
+  font-family: inherit;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background-color: #f9f9f9;
+}
+
+.form-group input:hover {
+  border-color: #ccc;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+  background-color: white;
+}
+
+.form-group input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: #f0f0f0;
+}
+
+.form-group input::placeholder {
+  color: #aaa;
+}
+
+/* ============================================
+   BUTTONS
+   ============================================ */
+
+.login-btn {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-top: 8px;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.25);
+}
+
+.login-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.35);
+}
+
+.login-btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.25);
+}
+
+.login-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Spinner Animation */
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ============================================
+   LINKS SECTION
+   ============================================ */
+
+.admin-links {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.register-link,
+.back-link {
+  text-align: center;
+  font-size: 14px;
+  color: #666;
+}
+
+.register-link a,
+.back-link a {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.register-link a::after,
+.back-link a::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: #667eea;
+  transition: width 0.3s ease;
+}
+
+.register-link a:hover,
+.back-link a:hover {
+  color: #764ba2;
+}
+
+.register-link a:hover::after,
+.back-link a:hover::after {
+  width: 100%;
+}
+
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
+
+@media (max-width: 768px) {
+  .login-box {
+    padding: 35px;
+    max-width: 90%;
+  }
+
+  .login-box h1 {
+    font-size: 28px;
+    margin-bottom: 8px;
+  }
+
+  .form-group input {
+    padding: 12px 14px;
+    font-size: 14px;
+  }
+
+  .error-message {
+    font-size: 13px;
+    padding: 12px 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-login-container {
+    padding: 15px;
+  }
+
+  .login-box {
+    padding: 28px;
+    border-radius: 12px;
+  }
+
+  .login-box h1 {
+    font-size: 24px;
+    margin-bottom: 6px;
+  }
+
+  .login-box > p {
+    font-size: 12px;
+    margin-bottom: 22px;
+  }
+
+  form {
+    gap: 16px;
+  }
+
+  .form-group {
+    gap: 6px;
+  }
+
+  .form-group label {
+    font-size: 12px;
+    letter-spacing: 0.5px;
+  }
+
+  .form-group input {
+    padding: 11px 13px;
+    font-size: 13px;
+  }
+
+  .login-btn {
+    padding: 12px;
+    font-size: 14px;
+    margin-top: 6px;
+  }
+
+  .admin-links {
+    gap: 10px;
+    margin-top: 22px;
+    padding-top: 16px;
+  }
+
+  .register-link,
+  .back-link {
+    font-size: 12px;
+  }
+
+  .error-message {
+    font-size: 12px;
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .error-icon {
+    font-size: 16px;
+  }
+}

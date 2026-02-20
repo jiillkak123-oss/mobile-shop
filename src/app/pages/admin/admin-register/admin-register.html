@@ -1,0 +1,98 @@
+<div class="admin-auth-container">
+  <div class="admin-auth-card">
+    <h2>Admin Registration</h2>
+
+    <!-- Error Message Display -->
+    <div *ngIf="errorMessage" class="error-message">
+      <span class="error-icon">⚠️</span>
+      <span>{{ errorMessage }}</span>
+    </div>
+
+    <form (ngSubmit)="register()" (keydown)="onKeyDown($event)">
+      <div class="input-group">
+        <label for="name">Full Name</label>
+        <input 
+          type="text" 
+          id="name" 
+          [(ngModel)]="name" 
+          name="name" 
+          placeholder="Enter full name"
+          autocomplete="name"
+          [disabled]="loading"
+          required 
+        />
+      </div>
+
+      <div class="input-group">
+        <label for="email">Email</label>
+        <input 
+          type="email" 
+          id="email" 
+          [(ngModel)]="email" 
+          name="email" 
+          placeholder="Enter email"
+          autocomplete="email"
+          [disabled]="loading"
+          required 
+        />
+      </div>
+
+      <div class="input-group">
+        <label for="password">Password</label>
+        <input 
+          type="password" 
+          id="password" 
+          [(ngModel)]="password" 
+          name="password" 
+          placeholder="Enter password (min 6 characters)"
+          autocomplete="new-password"
+          [disabled]="loading"
+          required 
+        />
+      </div>
+
+      <div class="input-group">
+        <label for="confirmPassword">Confirm Password</label>
+        <input 
+          type="password" 
+          id="confirmPassword" 
+          [(ngModel)]="confirmPassword" 
+          name="confirmPassword" 
+          placeholder="Confirm password"
+          autocomplete="new-password"
+          [disabled]="loading"
+          [class.error]="getPasswordMatchError()"
+          required 
+        />
+        <span *ngIf="getPasswordMatchError()" class="input-error">Passwords do not match</span>
+      </div>
+
+      <div class="input-group">
+        <label for="masterCode">Master Admin Code</label>
+        <input 
+          type="password" 
+          id="masterCode" 
+          [(ngModel)]="masterAdminCode" 
+          name="masterAdminCode" 
+          placeholder="Enter master admin code"
+          [disabled]="loading"
+          required 
+        />
+        <span class="input-hint">Required to create an admin account</span>
+      </div>
+
+      <button type="submit" [disabled]="loading || getPasswordMatchError()" class="btn-register">
+        <span *ngIf="!loading">Register as Admin</span>
+        <span *ngIf="loading">
+          <span class="spinner"></span>
+          Registering...
+        </span>
+      </button>
+    </form>
+
+    <p class="redirect">
+      Already registered?
+      <a routerLink="/admin/login">Login here</a>
+    </p>
+  </div>
+</div>

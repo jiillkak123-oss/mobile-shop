@@ -1,0 +1,434 @@
+<div class="admin-dashboard">
+  <!-- Success/Error Messages -->
+  <div *ngIf="successMessage" class="message success-message">✓ {{ successMessage }}</div>
+  <div *ngIf="errorMessage" class="message error-message">✗ {{ errorMessage }}</div>
+>
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">
+        <span class="logo-icon">⚙️</span>
+        <span>Admin Panel</span>
+      </div>
+    </div>
+<nav class="sidebar-nav">
+  <button 
+  class="nav-item" 
+  [class.active]="activeNav === 'dashboard'"
+  (click)="navigateToSection('dashboard')"
+  type="button">
+  <span class="nav-icon">📊</span>
+  <span>Dashboard</span>
+</button>
+
+<button 
+  class="nav-item" 
+  [class.active]="activeNav === 'products'"
+  (click)="navigateToSection('products')"
+  type="button">
+  📦 Products
+</button>
+     <button 
+  class="nav-item" 
+  [class.active]="activeNav === 'orders'"
+  (click)="navigateToSection('orders')"
+  type="button">
+  🛒 Orders
+</button>
+      <button 
+        class="nav-item" 
+        [class.active]="activeNav === 'users'"
+        (click)="navigateToSection('users')"
+        type="button">
+        <span class="nav-icon">👥</span>
+        <span>Users</span>
+      </button>
+      <button 
+        class="nav-item" 
+        [class.active]="activeNav === 'revenue'"
+        (click)="navigateToSection('revenue')"
+        type="button">
+        <span class="nav-icon">💰</span>
+        <span>Revenue</span>
+      </button>
+      <button 
+        class="nav-item" 
+        [class.active]="activeNav === 'reviews'"
+        (click)="navigateToSection('reviews')"
+        type="button">
+        <span class="nav-icon">⭐</span>
+        <span>Reviews</span>
+      </button>
+      <button 
+        class="nav-item" 
+        [class.active]="activeNav === 'settings'"
+        (click)="navigateToSection('settings')"
+        type="button">
+        <span class="nav-icon">⚙️</span>
+        <span>Settings</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="logout-btn" (click)="logout()" type="button">
+        <span>🚪</span>
+        <span>Logout</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Header -->
+    <header class="admin-header">
+      <div class="header-left">
+        <h1>Admin Dashboard</h1>
+        <p>Welcome back, {{ adminName }}!</p>
+      </div>
+      <div class="header-right">
+        <div class="search-box">
+          <input 
+            type="text" 
+            [(ngModel)]="searchQuery"
+            name="searchQuery"
+            placeholder="Search..."
+            (keydown)="onSearchKeyDown($event)"
+            autocomplete="off">
+          <span class="search-icon">🔍</span>
+        </div>
+        <div class="admin-profile">
+          <span class="profile-avatar">👤</span>
+          <span class="profile-name">{{ adminName }}</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Content Area -->
+    <div class="content-area">
+   
+
+      <!-- Charts and Data Section -->
+      <section class="analytics-section">
+        <!-- Recent Orders -->
+        <div class="data-card" *ngIf="activeNav === 'orders'">
+          <div class="card-header">
+            <h2>Recent Orders</h2>
+            <a href="#" class="view-all">View All →</a>
+          </div>
+          <div class="orders-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Customer</th>
+                  <th>Product</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+    <tbody>
+  <tr *ngFor="let order of orders"
+      (click)="viewOrder(order)"
+      class="clickable-row">
+
+    <td>#{{ order._id.slice(-6) }}</td>
+
+    <td>
+      {{ order.user?.name || order.user?.email || 'Guest' }}
+    </td>
+
+    <td>
+      <span *ngIf="order.items && order.items.length > 0">
+        {{ order.items[0].product?.name || order.items[0].product?.title }}
+      </span>
+      <span *ngIf="!order.items || order.items.length === 0">
+        -
+      </span>
+    </td>
+
+    <td>
+      ₹{{ order.totalPrice }}
+    </td>
+
+    <td>
+      {{ order.status }}
+       <button 
+    *ngIf="order.status !== 'Completed'" 
+    class="btn-small"
+    (click)="markAsCompleted(order._id)">
+    Mark as Completed
+  </button>
+ 
+    </td>
+
+    <td>
+      {{ order.createdAt | date:'MMM d, y' }}
+    </td>
+
+  </tr>
+
+  <div *ngIf="orders.length === 0">
+  No Order Found
+</div>  
+
+<tr *ngFor="let order of orders">
+  <td>{{ order._id }}</td>
+  <td>{{ order.user?.name || order.user?.email || 'Guest' }}</td>
+  <td>{{ order.status }}</td>
+  <td>
+    <button *ngIf="order.status !== 'Completed'" (click)="markAsCompleted(order._id)">
+  Mark as Completed
+</button>
+
+  </td>
+</tr>
+</tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Top Products -->
+        <div class="data-card" *ngIf="activeNav === 'products'">
+          <div class="card-header">
+            <h2>Top Selling Products</h2>
+            <a href="#" class="view-all">View All →</a>
+          </div>
+          <div class="products-list">
+            <div *ngFor="let p of products | slice:0:6" class="product-item">
+              <div class="product-thumb">
+                <img *ngIf="p.image" [src]="p.image" alt="{{p.title}}" />
+                <div *ngIf="!p.image" class="image-placeholder-small">📦</div>
+              </div>
+              <div class="product-info">
+                <span class="product-name">{{ p.title || p.name || p.name }}</span>
+                <span class="product-sales">${{ p.price }} • {{ p.category }}</span>
+              </div>
+              <div class="product-actions">
+                <button class="btn-small" type="button" (click)="openEditProduct(p)">Edit</button>
+                <button class="btn-small danger" type="button" (click)="deleteProduct(p)">Delete</button>
+              </div>
+            </div>
+            <div *ngIf="products.length === 0" class="empty-note">No products yet. Add one using Quick Actions.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Quick Actions -->
+      <section class="actions-section">
+        <h2>Quick Actions</h2>
+        <div class="action-buttons">
+          <button class="action-btn" (click)="quickAction('add-product')" type="button">
+            <span class="btn-icon">➕</span>
+            <span>Add Product</span>
+          </button>
+          <button class="action-btn" (click)="quickAction('add-user')" type="button">
+            <span class="btn-icon">👤</span>
+            <span>Add User</span>
+          </button>
+          <button class="action-btn" (click)="quickAction('generate-report')" type="button">
+            <span class="btn-icon">📊</span>
+            <span>Generate Report</span>
+          </button>
+          <button class="action-btn" (click)="quickAction('send-email')" type="button">
+            <span class="btn-icon">📧</span>
+            <span>Send Email</span>
+          </button>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Add Product Modal -->
+  <div *ngIf="showAddProductModal" class="modal-overlay" (click)="closeAddProductModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>➕ {{ isEditing ? 'Edit' : 'Add New' }} Product</h2>
+        <button class="close-btn" (click)="closeAddProductModal()" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <!-- Image Upload Section -->
+        <div class="image-upload-section">
+          <div *ngIf="!productImagePreview" class="image-placeholder">
+            <label for="productImageInput" class="image-input-label">
+              <span class="upload-icon">📷</span>
+              <span>Click to upload product image</span>
+              <small>JPEG, PNG, GIF or WebP (Max 5MB)</small>
+            </label>
+            <input 
+              id="productImageInput"
+              type="file" 
+              accept="image/*"
+              (change)="onProductImageSelected($event)"
+              class="image-input"
+              hidden />
+          </div>
+        <div *ngIf="productImagePreview" class="image-preview">
+  <img [src]="productImagePreview" alt="Product preview" />
+  <button (click)="removeProductImage()">Remove</button>
+</div>
+        </div>
+
+        <!-- Form Fields -->
+        <div class="form-group">
+          <label for="productName">Product Name *</label>
+          <input id="productName" type="text" [(ngModel)]="productForm.name" name="productName" placeholder="Enter product name" />
+        </div>
+        <div class="form-group">
+          <label>Variants</label>
+          <div *ngFor="let v of productForm.variants; let i = index" class="variant-row">
+            <input type="text" [(ngModel)]="productForm.variants[i].name" name="variantName{{i}}" placeholder="Name (e.g. Color)" />
+            <input type="text" [(ngModel)]="productForm.variants[i].value" name="variantValue{{i}}" placeholder="Value (e.g. Red)" />
+            <button class="btn-small danger" type="button" (click)="productForm.variants.splice(i,1)">Remove</button>
+          </div>
+          <button class="btn-small" type="button" (click)="productForm.variants.push({name:'', value:''})">Add Variant</button>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="productPrice">Price *</label>
+            <input id="productPrice" type="number" [(ngModel)]="productForm.price" name="productPrice" placeholder="0.00" />
+          </div>
+          <div class="form-group">
+            <label for="productStock">Stock *</label>
+            <input id="productStock" type="number" [(ngModel)]="productForm.stock" name="productStock" placeholder="0" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="productCategory">Category *</label>
+          <select id="productCategory" [(ngModel)]="productForm.category" name="productCategory">
+            <option value="">Select category</option>
+            <option value="Electronics">iphone</option>
+            <option value="Mobile">oppo</option>
+            <option value="Accessories">vivo</option>
+            <option value="Others">redmi</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="productDescription">Description</label>
+          <textarea id="productDescription" [(ngModel)]="productForm.description" name="productDescription" placeholder="Product description"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" (click)="closeAddProductModal()" type="button">Cancel</button>
+        <button class="btn-submit" (click)="submitAddProduct()" type="button" [disabled]="!productForm.name || !productForm.price || !productForm.stock || !productForm.category" title="Fill required fields">{{ isEditing ? 'Save Changes' : 'Add Product' }}</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add User Modal -->
+  <div *ngIf="showAddUserModal" class="modal-overlay" (click)="closeAddUserModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>👤 Add New User</h2>
+        <button class="close-btn" (click)="closeAddUserModal()" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="userName">User Name *</label>
+          <input id="userName" type="text" [(ngModel)]="userForm.name" name="userName" placeholder="Enter user name" />
+        </div>
+        <div class="form-group">
+          <label for="userEmail">Email Address *</label>
+          <input id="userEmail" type="email" [(ngModel)]="userForm.email" name="userEmail" placeholder="user@example.com" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="userRole">Role *</label>
+            <select id="userRole" [(ngModel)]="userForm.role" name="userRole">
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+              <option value="moderator">Moderator</option>
+              <option value="viewer">Viewer</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="userStatus">Status *</label>
+            <select id="userStatus" [(ngModel)]="userForm.status" name="userStatus">
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="blocked">Blocked</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" (click)="closeAddUserModal()" type="button">Cancel</button>
+        <button class="btn-submit" (click)="submitAddUser()" type="button">Add User</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Generate Report Modal -->
+  <div *ngIf="showReportModal" class="modal-overlay" (click)="closeReportModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>📊 Generate Report</h2>
+        <button class="close-btn" (click)="closeReportModal()" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="reportType">Report Type *</label>
+          <select id="reportType" [(ngModel)]="reportForm.type" name="reportType">
+            <option value="sales">Sales Report</option>
+            <option value="orders">Orders Report</option>
+            <option value="users">Users Report</option>
+            <option value="products">Products Report</option>
+            <option value="revenue">Revenue Report</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="reportStartDate">Start Date *</label>
+            <input id="reportStartDate" type="date" [(ngModel)]="reportForm.startDate" name="reportStartDate" />
+          </div>
+          <div class="form-group">
+            <label for="reportEndDate">End Date *</label>
+            <input id="reportEndDate" type="date" [(ngModel)]="reportForm.endDate" name="reportEndDate" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="reportFormat">Export Format *</label>
+          <select id="reportFormat" [(ngModel)]="reportForm.format" name="reportFormat">
+            <option value="pdf">PDF</option>
+            <option value="excel">Excel</option>
+            <option value="csv">CSV</option>
+            <option value="txt">Text</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" (click)="closeReportModal()" type="button">Cancel</button>
+        <button class="btn-submit" (click)="submitGenerateReport()" type="button">Generate & Download</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Send Email Modal -->
+  <div *ngIf="showEmailModal" class="modal-overlay" (click)="closeEmailModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>📧 Send Email</h2>
+        <button class="close-btn" (click)="closeEmailModal()" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="emailRecipient">Recipient Email *</label>
+          <input id="emailRecipient" type="email" [(ngModel)]="emailForm.recipient" name="emailRecipient" placeholder="recipient@example.com" />
+        </div>
+        <div class="form-group">
+          <label for="emailSubject">Subject *</label>
+          <input id="emailSubject" type="text" [(ngModel)]="emailForm.subject" name="emailSubject" placeholder="Email subject" />
+        </div>
+        <div class="form-group">
+          <label for="emailMessage">Message *</label>
+          <textarea id="emailMessage" [(ngModel)]="emailForm.message" name="emailMessage" placeholder="Type your email message..." rows="6"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" (click)="closeEmailModal()" type="button">Cancel</button>
+        <button class="btn-submit" (click)="submitSendEmail()" type="button">Send Email</button>
+      </div>
+    </div>
+  </div>
+</div>
+

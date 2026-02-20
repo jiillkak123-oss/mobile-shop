@@ -1,0 +1,136 @@
+/* --- Container & Card Styles --- */
+.analytics-section {
+  padding: 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f9f9f9;
+}
+
+.data-card {
+  background-color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  padding: 20px;
+  margin-bottom: 30px;
+}
+
+/* --- Card Header --- */
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.card-header h2 {
+  font-size: 1.5rem;
+  color: #333;
+}
+
+.card-header .view-all {
+  text-decoration: none;
+  color: #1e88e5;
+  font-weight: 500;
+  transition: color 0.3s;
+}
+
+.card-header .view-all:hover {
+  color: #1565c0;
+}
+
+/* --- Table Styles --- */
+.orders-table {
+  overflow-x: auto; /* responsive scroll on small screens */
+}
+
+.orders-table table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 700px; /* ensures table doesn't shrink too much */
+}
+
+.orders-table th,
+.orders-table td {
+  padding: 12px 15px;
+  text-align: left;
+}
+
+.orders-table th {
+  background-color: #f0f0f0;
+  color: #555;
+  font-weight: 600;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.orders-table td {
+  border-bottom: 1px solid #eee;
+  color: #444;
+}
+
+/* --- Row Hover & Click --- */
+.clickable-row {
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.clickable-row:hover {
+  background-color: #f1f7ff;
+}
+
+/* --- Buttons --- */
+.btn-small {
+  padding: 5px 10px;
+  font-size: 0.85rem;
+  border: none;
+  border-radius: 5px;
+  background-color: #28a745;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.btn-small:hover {
+  background-color: #218838;
+}
+
+/* --- Status Badge --- */
+.orders-table td:nth-child(5) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.orders-table td span.status {
+  padding: 4px 8px;
+  border-radius: 5px;
+  font-size: 0.85rem;
+  color: #fff;
+}
+
+.orders-table td span.status.Pending { background-color: #ffc107; }
+.orders-table td span.status.Shipped { background-color: #17a2b8; }
+.orders-table td span.status.Completed { background-color: #28a745; }
+.orders-table td span.status.Cancelled { background-color: #dc3545; }
+
+/* --- Empty State --- */
+.orders-table div {
+  padding: 20px;
+  text-align: center;
+  color: #888;
+  font-style: italic;
+}
+
+/* --- Responsive --- */
+@media (max-width: 768px) {
+  .card-header h2 {
+    font-size: 1.25rem;
+  }
+
+  .btn-small {
+    font-size: 0.75rem;
+    padding: 4px 8px;
+  }
+
+  .orders-table th, .orders-table td {
+    padding: 8px 10px;
+  }
+}

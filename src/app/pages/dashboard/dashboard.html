@@ -1,0 +1,149 @@
+<div class="dashboard-container">
+  <!-- Header -->
+  <header class="dashboard-header">
+    <div class="header-content">
+      <h1>📱 Mobile Shop Dashboard</h1>
+      <div class="header-right">
+        <span class="user-info">Welcome, {{ user?.name || 'User' }}!</span>
+        <button class="cart-btn" (click)="toggleCart()" type="button">
+          🛒 Cart
+          <span *ngIf="getCartCount() > 0" class="cart-count">{{ getCartCount() }}</span>
+        </button>
+        <button class="logout-btn" (click)="logout()">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <div class="dashboard-content">
+    <!-- Welcome Section -->
+    <section class="welcome-section">
+      <h2>Welcome Back!</h2>
+      <p>Explore our latest mobile devices and find your perfect match.</p>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="stats-section">
+      <div class="stat-card">
+        <div class="stat-icon">🛒</div>
+        <div class="stat-content">
+          <h3>Total Orders</h3>
+          <p class="stat-number">12</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">💾</div>
+        <div class="stat-content">
+          <h3>Wishlist Items</h3>
+          <p class="stat-number">8</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">⭐</div>
+        <div class="stat-content">
+          <h3>Reward Points</h3>
+          <p class="stat-number">450</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">📦</div>
+        <div class="stat-content">
+          <h3>Active Orders</h3>
+          <p class="stat-number">2</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Featured Products Section -->
+    <section class="products-section">
+      <h2>Featured Phones</h2>
+      <div class="products-grid">
+        <div *ngFor="let p of products | slice:0:8" class="product-card">
+          <div class="product-image">
+            <img *ngIf="p.image" [src]="p.image" alt="{{p.title || p.name}}" />
+            <div *ngIf="!p.image">📱</div>
+          </div>
+          <h3>{{ p.title || p.name }}</h3>
+          <p class="price">${{ p.price }}</p>
+          <p class="product-desc">{{ p.description || 'No description' }}</p>
+          <button class="btn-primary" (click)="addToCart(p)" type="button">Add to Cart</button>
+        </div>
+        <div *ngIf="products.length === 0" class="empty-note">No products available.</div>
+      </div>
+    </section>
+
+    <!-- Recent Orders Section -->
+    <section class="orders-section">
+      <h2>Recent Orders</h2>
+      <div class="orders-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Order ID</th>
+              <th>Product</th>
+              <th>Price</th>
+              <th>Status</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let o of orders">
+              <td>{{ o._id }}</td>
+              <td>{{ (o.items && o.items.length) ? (o.items[0].product || 'Item') : '—' }}</td>
+              <td>{{ o.totalPrice ? ('$' + o.totalPrice) : '-' }}</td>
+              <td><span class="status-badge">{{ o.status }}</span></td>
+              <td>{{ o.createdAt | date:'mediumDate' }}</td>
+            </tr>
+            <tr *ngIf="orders.length === 0">
+              <td colspan="5">No recent orders</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- Cart Modal -->
+<div *ngIf="showCart" class="cart-modal-overlay" (click)="toggleCart()">
+  <div class="cart-modal" (click)="$event.stopPropagation()">
+    <div class="cart-modal-header">
+      <h2>🛒 Shopping Cart</h2>
+      <button class="close-btn" (click)="toggleCart()" type="button">✕</button>
+    </div>
+    <div class="cart-modal-body">
+      <div *ngIf="cart.length === 0" class="empty-cart">
+        <p>Your cart is empty</p>
+      </div>
+      <div *ngIf="cart.length > 0">
+        <div *ngFor="let item of cart" class="cart-item">
+          <div class="item-image">
+            <img *ngIf="item.image" [src]="item.image" alt="{{item.title || item.name}}" />
+            <div *ngIf="!item.image">📱</div>
+          </div>
+          <div class="item-details">
+            <h4>{{ item.title || item.name }}</h4>
+            <p class="item-price">${{ item.price }}</p>
+            <p class="item-qty">Qty: {{ item.quantity || 1 }}</p>
+            <p class="item-subtotal">Subtotal: ${{ ((item.price || 0) * (item.quantity || 1)).toFixed(2) }}</p>
+          </div>
+          <button class="btn-remove" type="button" (click)="removeFromCart(item._id)">Remove</button>
+        </div>
+        <div class="cart-summary">
+          <div class="summary-row">
+            <span>Total Items:</span>
+            <strong>{{ getCartCount() }}</strong>
+          </div>
+          <div class="summary-row total">
+            <span>Total Price:</span>
+            <strong>${{ getCartTotal().toFixed(2) }}</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="cart-modal-footer">
+      <button class="btn-cancel" (click)="toggleCart()" type="button">Continue Shopping</button>
+      <button class="btn-checkout" (click)="checkout()" type="button" [disabled]="cart.length === 0">Checkout</button>
+    </div>
+  </div>
+</div>
