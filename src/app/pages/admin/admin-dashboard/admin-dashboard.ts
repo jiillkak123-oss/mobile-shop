@@ -50,9 +50,10 @@ export class AdminDashboardComponent implements OnInit {
   };
   productImagePreview: string | null = null;
 
-
+  // Orders & Users
   orders: any[] = [];
   selectedOrder: Order | null = null;
+  users: any[] = [];
 
   // User form
   userForm = {
@@ -83,9 +84,11 @@ export class AdminDashboardComponent implements OnInit {
 
   // Products list
   products: any[] = [];
+  filteredProducts: any[] = [];
   useBackend: boolean = true;
   isEditing: boolean = false;
   editingProductId: string | null = null;
+  isLoadingProducts: boolean = false;
 
   // ✅ SINGLE constructor
   constructor(
@@ -97,34 +100,28 @@ export class AdminDashboardComponent implements OnInit {
   ngOnInit(): void {
     this.loadOrders();
     this.loadProducts();
+    this.loadUsers();
     this.checkAdminToken();
   }
 
   /** ---------------- Orders ---------------- **/
 loadOrders() {
-  const token = localStorage.getItem('admin-token'); // token fetch karo
-
-  if (!token) {
-    console.error('No admin token found');
-    return;
-  }
-
-  fetch('http://localhost:3000/api/admin/all-orders', {
-    headers: {
-      Authorization: 'Bearer ' + token  // <-- ye token bhej raha hai
+  this.orderService.getAll().subscribe({
+    next: (data: any) => {
+      if (Array.isArray(data)) {
+        this.orders = data;
+      } else if (data.orders) {
+        this.orders = data.orders;
+      } else {
+        this.orders = [];
+      }
+    },
+    error: (err) => {
+      console.error('Failed to load orders', err);
+      this.errorMessage = 'Failed to load orders';
+      this.clearMessages();
     }
-  })
-  .then(res => res.json())
-  .then(data => {
-    if (Array.isArray(data)) {
-      this.orders = data;
-    } else if (data.orders) {
-      this.orders = data.orders;
-    } else {
-      this.orders = [];
-    }
-  })
-  .catch(err => console.error('Failed to load orders', err));
+  });
 }
   viewOrder(order: Order) {
     this.selectedOrder = order;
@@ -153,13 +150,26 @@ navigateToSection(section: NavSection) {
 
   // admin-dashboard.component.ts
 changeOrderStatus(orderId: string, newStatus: string) {
+  // Update UI immediately
+  const orderIdx = this.orders.findIndex(o => o._id === orderId);
+  if (orderIdx !== -1) {
+    this.orders[orderIdx].status = newStatus;
+    this.orders = [...this.orders]; // Trigger change detection
+  }
+  
+  this.successMessage = `Order marked ${newStatus}!`;
+  this.clearMessages();
+
   this.orderService.updateStatus(orderId, newStatus).subscribe({
     next: () => {
-      // Refresh the list to show updated status
-      this.loadOrders();
+      console.log('Order status updated');
     },
     error: (err) => {
       console.error('Error updating status:', err);
+      // Reload on error
+      this.loadOrders();
+      this.errorMessage = 'Failed to update order status';
+      this.clearMessages();
     }
   });
 
@@ -167,12 +177,23 @@ changeOrderStatus(orderId: string, newStatus: string) {
 
   /** ---------------- Products ---------------- **/
   loadProducts() {
+    this.isLoadingProducts = true;
     if (this.useBackend) {
-      this.productService.getAll().subscribe({
+      // Prefer admin endpoint when available for freshest data
+      const list$ = (this.productService as any).getAllAdmin ? (this.productService as any).getAllAdmin() : this.productService.getAll();
+      list$.subscribe({
         next: (res: any) => {
-          this.products = Array.isArray(res) ? res.reverse() : [];
+          const arr = Array.isArray(res) ? res : (res.products || res.items || []);
+          this.products = Array.isArray(arr) ? arr.slice().reverse() : [];
+          this.filteredProducts = this.products;
+          this.isLoadingProducts = false;
         },
-        error: (err: any) => console.error('Failed to load products', err)
+        error: (err: any) => {
+          console.error('Failed to load products', err);
+          this.errorMessage = 'Failed to load products';
+          this.clearMessages();
+          this.isLoadingProducts = false;
+        }
       });
     } else {
       const saved = localStorage.getItem('admin-products');
@@ -182,18 +203,330 @@ changeOrderStatus(orderId: string, newStatus: string) {
         this.products = [];
       }
       this.products = this.products.slice().reverse();
+      this.filteredProducts = this.products;
+      this.isLoadingProducts = false;
+    }
+  }
+
+  /** ---- Load Users from MongoDB ---- **/
+  loadUsers() {
+    const token = localStorage.getItem('admin-token');
+    
+    if (!token) {
+      console.error('No admin token found');
+      return;
+    }
+
+    fetch('http://localhost:3000/api/admin/all-users', {
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json'
+      }
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (Array.isArray(data)) {
+        this.users = data;
+      } else if (data.users && Array.isArray(data.users)) {
+        this.users = data.users;
+      } else {
+        this.users = [];
+      }
+      console.log('Users loaded:', this.users);
+    })
+    .catch(err => {
+      console.error('Failed to load users:', err);
+      this.users = [];
+    });
+  }
+
+  // ✅ SEARCH FUNCTIONALITY
+  onSearchKeyDown(event: any) {
+    const query = this.searchQuery.toLowerCase().trim();
+    
+    if (query === '') {
+      this.filteredProducts = this.products;
+    } else {
+      this.filteredProducts = this.products.filter(product => {
+        const name = (product.title || product.name || '').toLowerCase();
+        const category = (product.category || '').toLowerCase();
+        const price = String(product.price || '');
+        const description = (product.description || '').toLowerCase();
+        
+        return name.includes(query) || 
+               category.includes(query) || 
+               price.includes(query) ||
+               description.includes(query);
+      });
+    }
+  }
+
+  // ✅ OPEN EDIT PRODUCT
+  openEditProduct(product: any) {
+    this.isEditing = true;
+    this.editingProductId = product._id || product.id;
+    
+    // Load product data into form
+    this.productForm = {
+      name: product.title || product.name || '',
+      price: String(product.price || ''),
+      category: product.category || '',
+      stock: String(product.stock || product.quantity || 0),
+      description: product.description || '',
+      image: null,
+      variants: product.variants ? [...product.variants] : []
+    };
+
+    // Set image preview if available
+    if (product.image) {
+      this.productImagePreview = product.image;
+    }
+
+    this.showAddProductModal = true;
+  }
+
+  // ✅ DELETE PRODUCT
+  deleteProduct(product: any) {
+    const productId = product._id || product.id;
+    const productName = product.title || product.name || 'Product';
+
+    if (!confirm(`Are you sure you want to delete "${productName}"?`)) {
+      return;
+    }
+
+    // Remove from UI immediately
+    this.products = this.products.filter(p => (p._id || p.id) !== productId);
+    this.filteredProducts = this.filteredProducts.filter(p => (p._id || p.id) !== productId);
+    this.successMessage = `${productName} deleted successfully!`;
+    this.clearMessages();
+
+    if (this.useBackend) {
+      this.productService.delete(productId).subscribe({
+        next: (res) => {
+          console.log('Product deleted successfully:', res);
+        },
+        error: (err) => {
+          console.error('Failed to delete product:', err);
+          // Reload on error to restore data
+          this.loadProducts();
+          this.errorMessage = 'Failed to delete product. Please try again.';
+          this.clearMessages();
+        }
+      });
+    } else {
+      // Save to localStorage if not using backend
+      localStorage.setItem('admin-products', JSON.stringify(this.products));
+    }
+  }
+
+  // ✅ PRODUCT IMAGE SELECTION
+  onProductImageSelected(event: any) {
+    const file = event.target.files[0];
+    
+    if (file) {
+      // Validate file type
+      const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        this.errorMessage = 'Please upload a valid image file (JPEG, PNG, GIF, or WebP)';
+        this.clearMessages();
+        return;
+      }
+
+      // Validate file size (5MB max)
+      if (file.size > 5 * 1024 * 1024) {
+        this.errorMessage = 'File size must be less than 5MB';
+        this.clearMessages();
+        return;
+      }
+
+      this.productForm.image = file;
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e: any) => {
+        this.productImagePreview = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  removeProductImage() {
+    this.productImagePreview = null;
+    this.productForm.image = null;
+  }
+
+  // ✅ SUBMIT PRODUCT (ADD OR EDIT)
+  submitAddProduct() {
+    // Validation
+    if (!this.productForm.name.trim()) {
+      this.errorMessage = 'Product name is required';
+      this.clearMessages();
+      return;
+    }
+
+    if (!this.productForm.price || parseFloat(this.productForm.price) <= 0) {
+      this.errorMessage = 'Valid product price is required';
+      this.clearMessages();
+      return;
+    }
+
+    if (!this.productForm.category) {
+      this.errorMessage = 'Product category is required';
+      this.clearMessages();
+      return;
+    }
+
+    if (!this.productForm.stock || parseInt(this.productForm.stock) < 0) {
+      this.errorMessage = 'Valid stock quantity is required';
+      this.clearMessages();
+      return;
+    }
+
+    if (this.useBackend) {
+      const formData = new FormData();
+      formData.append('title', this.productForm.name);
+      formData.append('name', this.productForm.name);
+      formData.append('price', this.productForm.price);
+      formData.append('category', this.productForm.category);
+      formData.append('stock', this.productForm.stock);
+      formData.append('quantity', this.productForm.stock);
+      formData.append('description', this.productForm.description);
+
+      if (this.productForm.variants.length > 0) {
+        formData.append('variants', JSON.stringify(this.productForm.variants));
+      }
+
+      if (this.productForm.image) {
+        formData.append('image', this.productForm.image);
+      }
+
+      if (this.isEditing && this.editingProductId) {
+        // Update product - update UI immediately
+        const updatedProduct = {
+          _id: this.editingProductId,
+          title: this.productForm.name,
+          name: this.productForm.name,
+          price: parseFloat(this.productForm.price),
+          category: this.productForm.category,
+          stock: parseInt(this.productForm.stock),
+          quantity: parseInt(this.productForm.stock),
+          description: this.productForm.description,
+          image: this.productImagePreview
+        };
+        
+        const idx = this.products.findIndex(p => (p._id || p.id) === this.editingProductId);
+        if (idx !== -1) {
+          this.products[idx] = { ...this.products[idx], ...updatedProduct };
+          this.filteredProducts = [...this.products];
+        }
+        
+        this.successMessage = 'Product updated successfully!';
+        this.closeAddProductModal();
+        this.clearMessages();
+
+        this.productService.update(this.editingProductId, formData).subscribe({
+          next: (res) => {
+            console.log('Product updated successfully:', res);
+          },
+          error: (err) => {
+            console.error('Failed to update product:', err);
+            this.loadProducts(); // Reload on error
+            this.errorMessage = 'Failed to update product. Please try again.';
+            this.clearMessages();
+          }
+        });
+      } else {
+        // Add new product - update UI immediately
+        const newProduct = {
+          _id: Date.now().toString(),
+          title: this.productForm.name,
+          name: this.productForm.name,
+          price: parseFloat(this.productForm.price),
+          category: this.productForm.category,
+          stock: parseInt(this.productForm.stock),
+          quantity: parseInt(this.productForm.stock),
+          description: this.productForm.description,
+          image: this.productImagePreview
+        };
+        
+        this.products.unshift(newProduct);
+        this.filteredProducts = [...this.products];
+        this.successMessage = 'Product added successfully!';
+        this.closeAddProductModal();
+        this.clearMessages();
+
+        this.productService.create(formData).subscribe({
+          next: (res: any) => {
+            console.log('Product added successfully:', res);
+            const returned = res && res.product ? res.product : (res || null);
+            if (returned && returned._id) {
+              const idx = this.products.findIndex(p => p._id === newProduct._id);
+              if (idx !== -1) {
+                this.products[idx] = returned;
+                this.filteredProducts = [...this.products];
+              }
+            }
+            // clear editing flags
+            this.isEditing = false;
+            this.editingProductId = null;
+          },
+          error: (err) => {
+            console.error('Failed to add product:', err);
+            // Remove from UI on error
+            this.products = this.products.filter(p => p._id !== newProduct._id);
+            this.filteredProducts = [...this.products];
+            this.errorMessage = 'Failed to add product. Please try again.';
+            this.clearMessages();
+          }
+        });
+      }
+    } else {
+      // Save to localStorage if not using backend
+      const newProduct = {
+        _id: this.isEditing ? this.editingProductId : Date.now().toString(),
+        title: this.productForm.name,
+        name: this.productForm.name,
+        price: parseFloat(this.productForm.price),
+        category: this.productForm.category,
+        stock: parseInt(this.productForm.stock),
+        quantity: parseInt(this.productForm.stock),
+        description: this.productForm.description,
+        image: this.productImagePreview,
+        variants: this.productForm.variants
+      };
+
+      if (this.isEditing) {
+        const index = this.products.findIndex(p => (p._id || p.id) === this.editingProductId);
+        if (index !== -1) {
+          this.products[index] = newProduct;
+          this.successMessage = 'Product updated successfully!';
+        }
+      } else {
+        this.products.unshift(newProduct);
+        this.successMessage = 'Product added successfully!';
+      }
+
+      localStorage.setItem('admin-products', JSON.stringify(this.products));
+      this.loadProducts();
+      this.closeAddProductModal();
+      this.clearMessages();
     }
   }
 
   openAddProductModal() {
+    this.isEditing = false;
+    this.editingProductId = null;
+    this.resetProductForm();
+    this.productImagePreview = null;
     this.showAddProductModal = true;
-    this.clearMessages();
   }
 
   closeAddProductModal() {
     this.showAddProductModal = false;
+    this.isEditing = false;
+    this.editingProductId = null;
     this.resetProductForm();
-    this.productImagePreview = '';
+    this.productImagePreview = null;
   }
 
   resetProductForm() {
@@ -219,73 +552,252 @@ changeOrderStatus(orderId: string, newStatus: string) {
     const token = localStorage.getItem('admin-token');
     if (!token) this.router.navigate(['/admin/login']);
   }
-   isProductFormFilled: boolean = false;
 
-
-  
-
-  
-  // Auth
+  // ✅ AUTH
   logout() {
-    console.log('Logging out');
+    if (confirm('Are you sure you want to logout?')) {
+      localStorage.removeItem('admin-token');
+      localStorage.removeItem('admin-user');
+      this.router.navigate(['/admin/login']);
+    }
   }
 
-  // Search
-  onSearchKeyDown(event: any) {
-    console.log('Search key pressed:', event);
-  }
- 
-  // Product Actions
-  openEditProduct(product: any) {
-    console.log('Editing product:', product);
-  }
-
-  deleteProduct(productId: string) {
-    console.log('Deleting product with ID:', productId);
-  }
-
+  // ✅ QUICK ACTIONS
   quickAction(action: string) {
-    console.log('Quick action:', action);
+    switch (action) {
+      case 'add-product':
+        this.openAddProductModal();
+        break;
+      case 'add-user':
+        this.openAddUserModal();
+        break;
+      case 'generate-report':
+        this.openReportModal();
+        break;
+      case 'send-email':
+        this.openEmailModal();
+        break;
+      default:
+        console.log('Unknown action:', action);
+    }
   }
 
-  onProductImageSelected(event: any) {
-    console.log('Image selected:', event);
+  // ✅ USER MANAGEMENT
+  openAddUserModal() {
+    this.showAddUserModal = true;
+    this.clearMessages();
   }
 
-
-  removeProductImage() {
-    console.log('Removing image preview');
-    this.productImagePreview = null;
-  }
-
-  submitAddProduct() {
-    console.log('Submitting new product');
-  }
-
-  // User Management
   closeAddUserModal() {
-    console.log('Closing add user modal');
+    this.showAddUserModal = false;
+    this.resetUserForm();
+  }
+
+  resetUserForm() {
+    this.userForm = {
+      name: '',
+      email: '',
+      role: 'user',
+      status: 'active'
+    };
   }
 
   submitAddUser() {
-    console.log('Adding user');
+    // Validation
+    if (!this.userForm.name.trim()) {
+      this.errorMessage = 'User name is required';
+      this.clearMessages();
+      return;
+    }
+
+    if (!this.userForm.email.trim() || !this.validateEmail(this.userForm.email)) {
+      this.errorMessage = 'Valid email is required';
+      this.clearMessages();
+      return;
+    }
+
+    const token = localStorage.getItem('admin-token');
+    if (!token) {
+      this.errorMessage = 'No admin token found';
+      this.clearMessages();
+      return;
+    }
+
+    fetch('http://localhost:3000/api/admin/all-users', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(this.userForm)
+    })
+    .then(res => res.json())
+    .then(data => {
+      this.successMessage = 'User added successfully!';
+      this.closeAddUserModal();
+      this.loadUsers();
+      this.clearMessages();
+    })
+    .catch(err => {
+      console.error('Failed to add user:', err);
+      this.errorMessage = 'Failed to add user';
+      this.clearMessages();
+    });
   }
 
-  // Reports
+  // ✅ REPORTS
+  openReportModal() {
+    this.showReportModal = true;
+    this.clearMessages();
+  }
+
   closeReportModal() {
-    console.log('Closing report modal');
+    this.showReportModal = false;
+    this.reportForm = {
+      type: 'sales',
+      startDate: '',
+      endDate: '',
+      format: 'pdf'
+    };
   }
 
   submitGenerateReport() {
-    console.log('Generating report');
+    // Validation
+    if (!this.reportForm.startDate) {
+      this.errorMessage = 'Start date is required';
+      this.clearMessages();
+      return;
+    }
+
+    if (!this.reportForm.endDate) {
+      this.errorMessage = 'End date is required';
+      this.clearMessages();
+      return;
+    }
+
+    if (new Date(this.reportForm.startDate) > new Date(this.reportForm.endDate)) {
+      this.errorMessage = 'Start date must be before end date';
+      this.clearMessages();
+      return;
+    }
+
+    // Simulate report generation
+    const reportName = `${this.reportForm.type}_report_${new Date().getTime()}.${this.reportForm.format}`;
+    console.log('Generating report:', {
+      type: this.reportForm.type,
+      startDate: this.reportForm.startDate,
+      endDate: this.reportForm.endDate,
+      format: this.reportFormat,
+      fileName: reportName
+    });
+
+    this.successMessage = `Report generated and downloaded as ${reportName}`;
+    this.closeReportModal();
+    this.clearMessages();
   }
 
-  // Email
+  private get reportFormat(): string {
+    const formatMap: { [key: string]: string } = {
+      'pdf': 'pdf',
+      'excel': 'xlsx',
+      'csv': 'csv',
+      'txt': 'txt'
+    };
+    return formatMap[this.reportForm.format] || 'pdf';
+  }
+
+  // ✅ EMAIL
+  openEmailModal() {
+    this.showEmailModal = true;
+    this.clearMessages();
+  }
+
   closeEmailModal() {
-    console.log('Closing email modal');
+    this.showEmailModal = false;
+    this.resetEmailForm();
+  }
+
+  resetEmailForm() {
+    this.emailForm = {
+      recipient: '',
+      subject: '',
+      message: ''
+    };
   }
 
   submitSendEmail() {
-    console.log('Sending email');
+    // Validation
+    if (!this.emailForm.recipient.trim() || !this.validateEmail(this.emailForm.recipient)) {
+      this.errorMessage = 'Valid recipient email is required';
+      this.clearMessages();
+      return;
+    }
+
+    if (!this.emailForm.subject.trim()) {
+      this.errorMessage = 'Email subject is required';
+      this.clearMessages();
+      return;
+    }
+
+    if (!this.emailForm.message.trim()) {
+      this.errorMessage = 'Email message is required';
+      this.clearMessages();
+      return;
+    }
+
+    // Simulate email sending
+    console.log('Sending email:', this.emailForm);
+    this.successMessage = `Email sent successfully to ${this.emailForm.recipient}!`;
+    this.closeEmailModal();
+    this.clearMessages();
+  }
+
+  // ✅ USER MANAGEMENT
+  editUser(user: any) {
+    this.userForm = {
+      name: user.name || '',
+      email: user.email || '',
+      role: user.role || 'user',
+      status: user.status || 'active'
+    };
+    this.showAddUserModal = true;
+  }
+
+  deleteUser(userId: string) {
+    if (!confirm('Are you sure you want to delete this user?')) {
+      return;
+    }
+
+    const token = localStorage.getItem('admin-token');
+    if (!token) {
+      this.errorMessage = 'No admin token found';
+      this.clearMessages();
+      return;
+    }
+
+    fetch(`http://localhost:3000/api/admin/all-users/${userId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json'
+      }
+    })
+    .then(res => res.json())
+    .then(data => {
+      this.successMessage = 'User deleted successfully!';
+      this.loadUsers();
+      this.clearMessages();
+    })
+    .catch(err => {
+      console.error('Failed to delete user:', err);
+      this.errorMessage = 'Failed to delete user';
+      this.clearMessages();
+    });
+  }
+
+  // ✅ HELPER METHODS
+  validateEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
   }
 }

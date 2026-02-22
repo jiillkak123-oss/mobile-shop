@@ -1,52 +1,251 @@
 <!-- NAVBAR -->
 <nav class="navbar">
-  <div class="logo">📱 MobileShop</div>
-  <div class="nav-links">
-    <a href="/register">Register</a>
-    <a href="/login">Login</a>
-  
+  <div class="nav-container">
+    <div class="logo">📱 MobileShop</div>
+    <div class="nav-links">
+      <a routerLink="/" routerLinkActive="active">Home</a>
+      <a href="#featured">Featured</a>
+      <a href="#categories">Categories</a>
+      <a href="#about">About</a>
+      <a routerLink="/login" class="login-btn" routerLinkActive="active">Login</a>
+      <a routerLink="/register" class="register-btn" routerLinkActive="active">Register</a>
+    </div>
+    <div class="hamburger">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
   </div>
 </nav>
 
 <!-- HERO SECTION -->
 <section class="hero">
-  <div class="hero-text">
-    <h1>Latest Smartphones 2026</h1>
-    <p>Buy top brands at best prices with exciting offers.</p>
-    <button class="hero-btn">Shop Now</button>
+  <div class="hero-overlay"></div>
+  <div class="hero-content">
+    <h1 class="hero-title">Latest Smartphones 2026</h1>
+    <p class="hero-subtitle">Discover cutting-edge technology at unbeatable prices</p>
+    <div class="hero-buttons">
+      <button class="hero-btn primary" (click)="scrollToSection('featured')">Shop Now</button>
+      <button class="hero-btn secondary" (click)="browseDashboard()">Browse Products</button>
+    </div>
+  </div>
+  <div class="hero-pattern"></div>
+</section>
+
+<!-- FEATURED PRODUCTS SECTION -->
+<section class="featured-section" id="featured">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">Featured Mobiles</h2>
+      <p class="section-subtitle">Check out our best-selling devices</p>
+    </div>
+
+    <div class="products-grid">
+      <div class="product-card">
+        <div class="product-image-wrapper">
+          <img src="/images/i1.webp" alt="iPhone 15 Pro" class="product-image">
+          <span class="product-badge">New</span>
+        </div>
+        <div class="product-info">
+          <h3 class="product-name">iPhone 15 Pro</h3>
+          <div class="product-rating">
+            <span class="stars">★★★★★</span> (245 reviews)
+          </div>
+          <div class="product-price">₹1,29,999</div>
+          <button class="buy-btn">Add to Cart</button>
+        </div>
+      </div>
+
+      <div class="product-card">
+        <div class="product-image-wrapper">
+          <img src="/images/r1.jpg" alt="Samsung Galaxy S24" class="product-image">
+          <span class="product-badge hot">Hot</span>
+        </div>
+        <div class="product-info">
+          <h3 class="product-name">Samsung Galaxy S24</h3>
+          <div class="product-rating">
+            <span class="stars">★★★★☆</span> (189 reviews)
+          </div>
+          <div class="product-price">₹89,999</div>
+          <button class="buy-btn">Add to Cart</button>
+        </div>
+      </div>
+
+      <div class="product-card">
+        <div class="product-image-wrapper">
+          <img src="/images/o1.jpg" alt="Oppo Pro" class="product-image">
+          <span class="product-badge">Sale</span>
+        </div>
+        <div class="product-info">
+          <h3 class="product-name">Oppo Pro Max</h3>
+          <div class="product-rating">
+            <span class="stars">★★★★★</span> (156 reviews)
+          </div>
+          <div class="product-price">₹60,000</div>
+          <button class="buy-btn">Add to Cart</button>
+        </div>
+      </div>
+
+      <div class="product-card">
+        <div class="product-image-wrapper">
+          <img src="/images/i1.webp" alt="iPhone 14" class="product-image">
+          <span class="product-badge">New</span>
+        </div>
+        <div class="product-info">
+          <h3 class="product-name">iPhone 14</h3>
+          <div class="product-rating">
+            <span class="stars">★★★★★</span> (312 reviews)
+          </div>
+          <div class="product-price">₹79,999</div>
+          <button class="buy-btn">Add to Cart</button>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
-<!-- PRODUCTS -->
-<section class="products-section">
-  <h2 class="section-title">Featured Mobiles</h2>
-
-  <div class="products-grid">
-
-    <div class="product-card">
-      <img src="/images/i1.webp" alt="iPhone 15 Pro">
-      <div class="product-name">iPhone 15 Pro</div>
-      <div class="product-price">₹1,29,999</div>
-      <button class="buy-btn">Add to Cart</button>
+<!-- CATEGORIES SECTION -->
+<section class="categories-section" id="categories">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">Shop by Brand</h2>
+      <p class="section-subtitle">Choose from premium brands</p>
     </div>
 
-    <div class="product-card">
-      <img src="/images/r1.jpg" alt="Samsung Galaxy S24">
-      <div class="product-name">Samsung S24</div>
-      <div class="product-price">₹89,999</div>
-      <button class="buy-btn">Add to Cart</button>
+    <div class="categories-grid">
+      <div class="category-card">
+        <div class="category-icon">📱</div>
+        <h3>Apple</h3>
+        <p>Latest iPhones & Models</p>
+      </div>
+      <div class="category-card">
+        <div class="category-icon">🔷</div>
+        <h3>Samsung</h3>
+        <p>Galaxy Series</p>
+      </div>
+      <div class="category-card">
+        <div class="category-icon">🔵</div>
+        <h3>Oppo</h3>
+        <p>Innovation & Style</p>
+      </div>
+      <div class="category-card">
+        <div class="category-icon">🟢</div>
+        <h3>OnePlus</h3>
+        <p>Performance Flagship</p>
+      </div>
     </div>
-
-    <div class="product-card">
-      <img src="/images/o1.jpg" alt="Oppo Phone">
-      <div class="product-name">Oppo</div>
-      <div class="product-price">₹60,000</div>
-      <button class="buy-btn">Add to Cart</button>
-    </div>
-
   </div>
 </section>
 
+<!-- FEATURES SECTION -->
+<section class="features-section">
+  <div class="container">
+    <div class="features-grid">
+      <div class="feature-item">
+        <div class="feature-icon">🚚</div>
+        <h3>Free Delivery</h3>
+        <p>On orders above ₹5,000</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">💳</div>
+        <h3>Secure Payment</h3>
+        <p>100% safe transactions</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">↩️</div>
+        <h3>Easy Returns</h3>
+        <p>30-day return policy</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">💬</div>
+        <h3>24/7 Support</h3>
+        <p>Always here to help</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ABOUT SECTION -->
+<section class="about-section" id="about">
+  <div class="container">
+    <div class="about-content">
+      <div class="about-text">
+        <h2>About MobileShop</h2>
+        <p>Welcome to MobileShop, your one-stop destination for the latest and greatest smartphones. We pride ourselves on offering the best selection of premium brands at competitive prices.</p>
+        <p>With over 10 years of experience in the mobile industry, we guarantee authentic products and exceptional customer service. Join thousands of satisfied customers who trust us for their mobile needs.</p>
+        <div class="about-stats">
+          <div class="stat">
+            <h4>10K+</h4>
+            <p>Happy Customers</p>
+          </div>
+          <div class="stat">
+            <h4>500+</h4>
+            <p>Products</p>
+          </div>
+          <div class="stat">
+            <h4>99%</h4>
+            <p>Satisfaction</p>
+          </div>
+        </div>
+      </div>
+      <div class="about-image">
+        <img src="/images/s2.webp" alt="About MobileShop">
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- NEWSLETTER SECTION -->
+<section class="newsletter-section">
+  <div class="container">
+    <h2>Subscribe to Our Newsletter</h2>
+    <p>Get exclusive deals and latest updates delivered to your inbox</p>
+    <form class="newsletter-form">
+      <input type="email" placeholder="Enter your email" required>
+      <button type="submit" class="newsletter-btn">Subscribe</button>
+    </form>
+  </div>
+</section>
+
+<!-- FOOTER -->
 <footer class="footer">
-  © 2026 MobileStore. All Rights Reserved.
+  <div class="container">
+    <div class="footer-content">
+      <div class="footer-section">
+        <h4>About Us</h4>
+        <ul>
+          <li><a href="#">Our Story</a></li>
+          <li><a href="#">Careers</a></li>
+          <li><a href="#">Blog</a></li>
+        </ul>
+      </div>
+      <div class="footer-section">
+        <h4>Customer Care</h4>
+        <ul>
+          <li><a href="#">Contact Us</a></li>
+          <li><a href="#">FAQ</a></li>
+          <li><a href="#">Shipping Info</a></li>
+        </ul>
+      </div>
+      <div class="footer-section">
+        <h4>Policies</h4>
+        <ul>
+          <li><a href="#">Privacy Policy</a></li>
+          <li><a href="#">Terms & Conditions</a></li>
+          <li><a href="#">Return Policy</a></li>
+        </ul>
+      </div>
+      <div class="footer-section">
+        <h4>Follow Us</h4>
+        <div class="social-links">
+          <a href="#">Facebook</a>
+          <a href="#">Twitter</a>
+          <a href="#">Instagram</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>&copy; 2026 MobileShop. All Rights Reserved.</p>
+    </div>
+  </div>
 </footer>

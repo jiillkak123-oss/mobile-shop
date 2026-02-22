@@ -16,6 +16,9 @@
 
   <!-- Main Content -->
   <div class="dashboard-content">
+    <div *ngIf="successMessage" class="toast success" (click)="$event.stopPropagation()">{{ successMessage }}</div>
+    <div *ngIf="errorMessage" class="toast error" (click)="$event.stopPropagation()">{{ errorMessage }}</div>
+    <div *ngIf="sessionNotice" class="toast notice" (click)="$event.stopPropagation()">{{ sessionNotice }}</div>
     <!-- Welcome Section -->
     <section class="welcome-section">
       <h2>Welcome Back!</h2>
@@ -57,8 +60,19 @@
     <!-- Featured Products Section -->
     <section class="products-section">
       <h2>Featured Phones</h2>
+      <div class="product-filters">
+        <div  class="category-list">
+          <button *ngFor="let c of categories"
+                  class="category-pill"
+                  [class.active]="selectedCategory === c"
+                  (click)="onCategoryChange(c)"
+                  type="button">
+            {{ c }}
+          </button>
+        </div>
+      </div>
       <div class="products-grid">
-        <div *ngFor="let p of products | slice:0:8" class="product-card">
+        <div *ngFor="let p of (filteredProducts || products)" class="product-card" (click)="viewProduct(p)" tabindex="0">
           <div class="product-image">
             <img *ngIf="p.image" [src]="p.image" alt="{{p.title || p.name}}" />
             <div *ngIf="!p.image">📱</div>
@@ -66,7 +80,13 @@
           <h3>{{ p.title || p.name }}</h3>
           <p class="price">${{ p.price }}</p>
           <p class="product-desc">{{ p.description || 'No description' }}</p>
-          <button class="btn-primary" (click)="addToCart(p)" type="button">Add to Cart</button>
+          <div class="card-actions">
+                     <input type="number" min="1" step="1" class="qty-input"
+                       [value]="p._qty || 1" placeholder="Qty" title="Quantity" aria-label="Quantity"
+                       (input)="p._qty = +$any($event.target).value"
+                       (click)="$event.stopPropagation()" />
+            <button type="button" class="btn-primary" (click)="addToCart(p); $event.stopPropagation()">Add to Cart</button>
+          </div>
         </div>
         <div *ngIf="products.length === 0" class="empty-note">No products available.</div>
       </div>

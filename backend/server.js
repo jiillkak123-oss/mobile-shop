@@ -283,13 +283,47 @@ app.get('/api/me', authenticateToken, async (req, res) => {
 // Get orders for current user
 app.get('/api/my-orders', authenticateToken, async (req, res) => {
   try {
-    const orders = await Order.find({ user: req.user.id }).lean();
+    const orders = await Order.find({ user: req.user.id })
+      .populate('user', 'name email')
+      .populate('items.product', 'title price')
+      .sort({ createdAt: -1 })
+      .lean();
     res.json(orders);
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }
 });
 // ================= Create Order =================
+// Public guest order endpoint (no auth required)
+app.post('/api/orders/public', async (req, res) => {
+  try {
+    const { items, totalPrice } = req.body;
+
+    if (!items || items.length === 0) {
+      return res.status(400).json({ error: 'Order items required' });
+    }
+
+    const newOrder = new Order({
+      user: null,
+      items,
+      totalPrice,
+      status: 'pending'
+    });
+
+    await newOrder.save();
+
+    res.status(201).json({
+      message: 'Order placed successfully',
+      order: newOrder
+    });
+
+  } catch (err) {
+    console.error('Create public order error:', err);
+    res.status(500).json({ error: 'Server error', detail: err.message });
+  }
+});
+
+// Authenticated order endpoint (for logged-in users)
 app.post('/api/orders', authenticateToken, async (req, res) => {
   try {
     const { items, totalPrice } = req.body;
@@ -299,7 +333,7 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
     }
 
     const newOrder = new Order({
-      user: req.user.id,   // logged in user automatically
+      user: req.user.id,
       items,
       totalPrice,
       status: 'pending'
@@ -363,10 +397,149 @@ app.put('/api/admin/update-order/:id', authenticateToken, requireAdmin, async (r
     res.status(500).json({ error: 'Server error', detail: err.message });
   }
 });
+
+// ================= Product Management =================
+// Update product
+app.put('/api/products/:id', upload.single('image'), authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const { name, title, price, category, description, stock, quantity } = req.body;
+    
+    const updateData = {
+      title: name || title,
+      price: Number(price),
+      category,
+      description,
+      stock: Number(stock || quantity || 0)
+    };
+
+    if (req.file) {
+      const host = req.get('host');
+      updateData.image = `${req.protocol}://${host}/images/${req.file.filename}`;
+    }
+
+    const product = await Product.findByIdAndUpdate(productId, updateData, { new: true });
+    if (!product) return res.status(404).json({ error: 'Product not found' });
+    
+    res.json({ message: 'Product updated', product });
+  } catch (err) {
+    console.error('Update product error', err);
+    res.status(500).json({ error: 'Server error', detail: err.message });
+  }
+});
+
+// Delete product
+app.delete('/api/products/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const product = await Product.findByIdAndDelete(productId);
+    
+    if (!product) return res.status(404).json({ error: 'Product not found' });
+    
+    res.json({ message: 'Product deleted successfully', product });
+  } catch (err) {
+    console.error('Delete product error', err);
+    res.status(500).json({ error: 'Server error', detail: err.message });
+  }
+});
+
+// ================= User Management (Admin) =================
+// Add new user (admin)
+app.post('/api/admin/all-users', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { name, email, password, role, status } = req.body;
+    
+    if (!name || !email) {
+      return res.status(400).json({ error: 'Name and email required' });
+    }
+
+    const exists = await User.findOne({ email });
+    if (exists) return res.status(400).json({ error: 'User already exists' });
+
+    const hashed = await bcrypt.hash(password || email, 10);
+    const user = new User({ 
+      name, 
+      email, 
+      password: hashed, 
+      role: role || 'user',
+      status: status || 'active'
+    });
+    
+    await user.save();
+    res.status(201).json({ message: 'User created', user: { _id: user._id, name: user.name, email: user.email, role: user.role, status: user.status } });
+  } catch (err) {
+    console.error('Create user error', err);
+    res.status(500).json({ error: 'Server error', detail: err.message });
+  }
+});
+
+// Update user (admin)
+app.put('/api/admin/all-users/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { name, email, role, status } = req.body;
+    
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { name, email, role, status },
+      { new: true }
+    ).select('-password');
+    
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    
+    res.json({ message: 'User updated', user });
+  } catch (err) {
+    console.error('Update user error', err);
+    res.status(500).json({ error: 'Server error', detail: err.message });
+  }
+});
+
+// Delete user (admin)
+app.delete('/api/admin/all-users/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const user = await User.findByIdAndDelete(req.params.id);
+    
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    
+    res.json({ message: 'User deleted successfully' });
+  } catch (err) {
+    console.error('Delete user error', err);
+    res.status(500).json({ error: 'Server error', detail: err.message });
+  }
+});
+
 // Existing Product & Order endpoints (no change needed)
 // ... keep all your product and order routes from your original server.js
 
 // ================= Start Server =================
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+});
+
+// Get public guest orders (no auth required)
+app.get('/api/orders/public', async (req, res) => {
+  try {
+    const orders = await Order.find({ user: null })
+      .populate('items.product', 'title price')
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json(orders);
+  } catch (err) {
+    console.error('Get public orders error:', err);
+    res.status(500).json({ error: 'Server error', detail: err.message });
+  }
+});
+
+// Debug/utility: return all orders (public + user) populated — useful for dashboard
+app.get('/api/orders/all', async (req, res) => {
+  try {
+    const orders = await Order.find()
+      .populate('user', 'name email')
+      .populate('items.product', 'title price')
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json(orders);
+  } catch (err) {
+    console.error('Get all orders error:', err);
+    res.status(500).json({ error: 'Server error', detail: err.message });
+  }
 });

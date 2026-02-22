@@ -28,17 +28,20 @@ export class Login {
     this.authService.login(this.email, this.password).subscribe(
       (response: any) => {
         this.loading = false;
-        const user = response.user || response.user || response;
-        const token = response.token || null;
+        const user = response?.user || response;
+        const token = response?.token || (response?.user && response.user.token) || null;
         if (user) {
-          this.authService.saveUser(user, token || ('token-' + user._id));
-          alert('Login Successful');
+          this.authService.saveUser(user, token || (`token-${(user && user._id) || 'unknown'}`));
+          // navigate after successful login
           if (user.role === 'admin') this.router.navigate(['/admin/dashboard']); else this.router.navigate(['/dashboard']);
+        } else {
+          // unexpected response
+          alert('Login failed: unexpected server response');
         }
       },
       (error: any) => {
         this.loading = false;
-        alert(error.error?.error || 'Login failed');
+        alert(error.error?.error || error.error?.message || 'Login failed');
       }
     );
   }
