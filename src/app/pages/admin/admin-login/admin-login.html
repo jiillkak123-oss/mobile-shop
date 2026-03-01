@@ -8,19 +8,21 @@
       <span>{{ errorMessage }}</span>
     </div>
 
-    <form (ngSubmit)="login()" (keydown)="onKeyDown($event)">
+    <form [formGroup]="loginForm" (ngSubmit)="login()" (keydown)="onKeyDown($event)">
       <div class="form-group">
         <label for="email">Email</label>
         <input 
           id="email"
           type="email" 
-          [(ngModel)]="email" 
-          name="email" 
+          formControlName="email" 
           placeholder="Enter admin email"
           autocomplete="email"
           [disabled]="loading"
-          required 
         />
+        <div *ngIf="loginForm.get('email')?.touched && emailErrors" class="input-error">
+          <small *ngIf="emailErrors['required']">Email is required</small>
+          <small *ngIf="emailErrors['email']">Please enter a valid email address</small>
+        </div>
       </div>
 
       <div class="form-group">
@@ -28,16 +30,18 @@
         <input 
           id="password"
           type="password" 
-          [(ngModel)]="password" 
-          name="password" 
+          formControlName="password" 
           placeholder="Enter password"
           autocomplete="current-password"
           [disabled]="loading"
-          required 
         />
+        <div *ngIf="loginForm.get('password')?.touched && passwordErrors" class="input-error">
+          <small *ngIf="passwordErrors['required']">Password is required</small>
+          <small *ngIf="passwordErrors['minlength']">Password must be at least 6 characters</small>
+        </div>
       </div>
 
-      <button type="submit" [disabled]="loading" class="login-btn">
+      <button type="submit" [disabled]="loginForm.invalid || loading" class="login-btn">
         <span *ngIf="!loading">Login</span>
         <span *ngIf="loading">
           <span class="spinner"></span>

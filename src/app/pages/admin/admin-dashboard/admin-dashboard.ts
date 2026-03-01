@@ -90,6 +90,23 @@ export class AdminDashboardComponent implements OnInit {
   editingProductId: string | null = null;
   isLoadingProducts: boolean = false;
 
+  // ✅ REVENUE TRACKING
+  revenueData: any = {
+    totalRevenue: 0,
+    totalOrders: 0,
+    averageOrderValue: 0,
+    completedOrders: 0,
+    dailyRevenue: [] as Array<{ date: string; revenue: number }>,
+    monthlyRevenue: 0,
+    yearlyRevenue: 0,
+    revenueGrowth: 0,
+    topProducts: [] as Array<{ name: string; revenue: number; orders: number }>
+  };
+  revenueFilterPeriod: 'all' | '7days' | '30days' | '90days' | 'year' = '30days';
+
+  // Math object for template
+  Math = Math;
+
   // ✅ SINGLE constructor
   constructor(
     private orderService: OrderService,
@@ -98,6 +115,7 @@ export class AdminDashboardComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.loadOrdersForRevenue();
     this.loadOrders();
     this.loadProducts();
     this.loadUsers();
@@ -123,6 +141,174 @@ loadOrders() {
     }
   });
 }
+
+  // ✅ Load orders and calculate revenue
+  loadOrdersForRevenue(): void {
+    this.orderService.getAll().subscribe({
+      next: (data: any) => {
+        this.orders = Array.isArray(data) ? data : (data.orders || []);
+        this.calculateRevenue();
+      },
+      error: (err) => {
+        console.error('Failed to load orders:', err);
+        this.orders = [];
+      }
+    });
+  }
+
+  // ✅ Calculate revenue from orders
+  calculateRevenue(): void {
+    if (!this.orders || this.orders.length === 0) {
+      this.revenueData = {
+        totalRevenue: 0,
+        totalOrders: 0,
+        averageOrderValue: 0,
+        completedOrders: 0,
+        dailyRevenue: [],
+        monthlyRevenue: 0,
+        yearlyRevenue: 0,
+        revenueGrowth: 0,
+        topProducts: []
+      };
+      return;
+    }
+
+    const now = new Date();
+    let filteredOrders = this.orders;
+    const dailyMap = new Map<string, number>();
+    
+    // Filter orders by date range
+    if (this.revenueFilterPeriod !== 'all') {
+      filteredOrders = this.orders.filter((order: any) => {
+        const orderDate = new Date(order.createdAt);
+        const daysDiff = Math.floor((now.getTime() - orderDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        switch (this.revenueFilterPeriod) {
+          case '7days': return daysDiff <= 7;
+          case '30days': return daysDiff <= 30;
+          case '90days': return daysDiff <= 90;
+          case 'year': return daysDiff <= 365;
+          default: return true;
+        }
+      });
+    }
+
+    // Calculate metrics
+    let totalRevenue = 0;
+    const productMap = new Map<string, { revenue: number; orders: number }>();
+
+    filteredOrders.forEach((order: any) => {
+      totalRevenue += order.totalPrice || 0;
+
+      // Daily revenue
+      const dateStr = new Date(order.createdAt).toISOString().split('T')[0];
+      dailyMap.set(dateStr, (dailyMap.get(dateStr) || 0) + (order.totalPrice || 0));
+
+      // Top products
+      if (order.items && order.items.length > 0) {
+        order.items.forEach((item: any) => {
+          const productName = item.product?.title || item.product?.name || 'Unknown';
+          const productRevenue = (item.price || 0) * (item.quantity || 1);
+          
+          if (productMap.has(productName)) {
+            const existing = productMap.get(productName)!;
+            existing.revenue += productRevenue;
+            existing.orders += 1;
+          } else {
+            productMap.set(productName, { revenue: productRevenue, orders: 1 });
+          }
+        });
+      }
+    });
+
+    // Convert daily revenue to sorted array
+    const dailyRevenue = Array.from(dailyMap.entries())
+      .map(([date, revenue]) => ({ date, revenue }))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .slice(-7);
+
+    // Top products
+    const topProducts = Array.from(productMap.entries())
+      .map(([name, data]) => ({ name, ...data }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
+
+    // Calculate growth
+    const previousRevenue = this.calculatePreviousPeriodRevenue();
+    const revenueGrowth = previousRevenue > 0 ? ((totalRevenue - previousRevenue) / previousRevenue) * 100 : 0;
+
+    this.revenueData = {
+      totalRevenue: Math.round(totalRevenue),
+      totalOrders: filteredOrders.length,
+      averageOrderValue: filteredOrders.length > 0 ? Math.round(totalRevenue / filteredOrders.length) : 0,
+      completedOrders: this.orders.filter((o: any) => o.status === 'completed' || o.status === 'Completed').length,
+      dailyRevenue,
+      monthlyRevenue: Math.round(totalRevenue / (this.revenueFilterPeriod === '30days' ? 1 : 30)),
+      yearlyRevenue: Math.round((totalRevenue / (this.revenueFilterPeriod === 'year' ? 1 : 365)) * 365),
+      revenueGrowth: Math.round(revenueGrowth * 100) / 100,
+      topProducts
+    };
+  }
+
+  // ✅ Calculate previous period revenue for comparison
+  calculatePreviousPeriodRevenue(): number {
+    if (!this.orders || this.orders.length === 0) return 0;
+
+    const now = new Date();
+    let daysInPeriod = 30;
+    
+    switch (this.revenueFilterPeriod) {
+      case '7days': daysInPeriod = 7; break;
+      case '30days': daysInPeriod = 30; break;
+      case '90days': daysInPeriod = 90; break;
+      case 'year': daysInPeriod = 365; break;
+    }
+
+    const previousOrders = this.orders.filter((order: any) => {
+      const orderDate = new Date(order.createdAt);
+      const daysDiff = Math.floor((now.getTime() - orderDate.getTime()) / (1000 * 60 * 60 * 24));
+      return daysDiff > daysInPeriod && daysDiff <= daysInPeriod * 2;
+    });
+
+    return previousOrders.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
+  }
+
+  // ✅ Filter revenue by period
+  filterRevenueByPeriod(period: 'all' | '7days' | '30days' | '90days' | 'year'): void {
+    this.revenueFilterPeriod = period;
+    this.calculateRevenue();
+  }
+
+  // ✅ Get revenue status color
+  getRevenueStatusColor(): string {
+    if (this.revenueData.revenueGrowth > 0) return 'green';
+    if (this.revenueData.revenueGrowth < 0) return 'red';
+    return 'gray';
+  }
+
+  // Get max daily revenue for chart scaling
+  getMaxDailyRevenue(): number {
+    if (!this.revenueData.dailyRevenue || this.revenueData.dailyRevenue.length === 0) return 0;
+    return Math.max(...this.revenueData.dailyRevenue.map((d: any) => d.revenue));
+  }
+
+  // Calculate percentage height for chart bar
+  getBarHeight(revenue: number): number {
+    const max = this.getMaxDailyRevenue();
+    if (max === 0) return 0;
+    return (revenue / max) * 100;
+  }
+
+  // ✅ Format currency in Indian Rupees
+  formatCurrency(value: number): string {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(value);
+  }
+
   viewOrder(order: Order) {
     this.selectedOrder = order;
     alert(`Order ID: ${order._id}`);

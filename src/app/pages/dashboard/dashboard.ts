@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { AuthService } from '../../services/auth';
@@ -8,15 +8,15 @@ import { AuthService } from '../../services/auth';
   standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './dashboard.html',
-  styleUrl: './dashboard.css',
+  styleUrls: ['./dashboard.css'],
 })
-export class Dashboard {
+export class Dashboard implements OnInit {
   user: any = null;
   orders: any[] = [];
   loading = false;
   products: any[] = [];
   filteredProducts: any[] = [];
-  categories: string[] = ['All', 'Oppo', 'Vivo', 'Realme', 'Samsung', 'Apple'];
+  categories: string[] = ['All', 'Oppo', 'Vivo', 'Realme', 'Samsung', 'Apple','Redmi','Oneplus','Motorola'];
   selectedCategory: string = 'All';
   cart: any[] = [];
   showCart = false;
@@ -24,10 +24,13 @@ export class Dashboard {
   errorMessage: string = '';
   sessionNotice: string = '';
 
-  constructor(private auth: AuthService, private router: Router) {
+  constructor(private auth: AuthService, private router: Router, private cd: ChangeDetectorRef) {
     this.user = this.auth.getCurrentUser();
+  }
+
+  ngOnInit(): void {
     this.loadCart();
-    this.loadProfile();
+    void this.loadProfile();
   }
 
   async loadProfile() {
@@ -45,6 +48,7 @@ export class Dashboard {
           const pubRes = await fetch('http://localhost:3000/api/orders/public');
           if (pubRes.ok) {
             this.orders = await pubRes.json();
+            try { this.cd.detectChanges(); } catch (e) {}
           } else {
             this.orders = [];
           }
@@ -76,6 +80,7 @@ export class Dashboard {
           const allRes = await fetch('http://localhost:3000/api/orders/all', { headers });
           if (allRes.ok) {
             this.orders = await allRes.json();
+            try { this.cd.detectChanges(); } catch (e) {}
           } else {
             this.orders = [];
           }
@@ -99,6 +104,8 @@ export class Dashboard {
         this.products = Array.isArray(prodData) ? prodData : [];
         // initialize filtered list
         this.filteredProducts = Array.isArray(this.products) ? [...this.products] : [];
+        this.onCategoryChange(this.selectedCategory || 'All');
+        try { this.cd.detectChanges(); } catch (e) {}
         console.log('Products set:', this.products.length, 'Filtered:', this.filteredProducts.length);
       } else {
         console.error('Products endpoint failed with status:', prodRes.status);
@@ -134,6 +141,14 @@ export class Dashboard {
     this.router.navigate(['/login']);
   }
 
+  adminLogin() {
+    try {
+      this.router.navigate(['/admin/login']);
+    } catch (e) {
+      console.warn('Admin navigation failed', e);
+    }
+  }
+
   // ---------------- CART FUNCTIONS ----------------
 
   loadCart() {
@@ -150,16 +165,17 @@ export class Dashboard {
   }
 
   addToCart(product: any, qty?: number) {
-    const addQty = qty || product._qty || 1;
+    const addQty = Math.max(1, Number(qty ?? product._qty ?? 1));
     const existing = this.cart.find(item => item._id === product._id);
     if (existing) {
-      existing.quantity = (existing.quantity || 1) + addQty;
+      existing.quantity = (Number(existing.quantity) || 0) + addQty;
     } else {
       this.cart.push({ ...product, quantity: addQty });
     }
     // normalize to integers
-    this.cart = this.cart.map(i => ({ ...i, quantity: Math.max(1, Number(i.quantity || 1)) }));
+    this.cart = this.cart.map(i => ({ ...i, quantity: Math.max(1, Math.floor(Number(i.quantity || 1))) }));
     this.saveCart();
+    try { this.cd.detectChanges(); } catch (e) {}
     this.successMessage = `${product.title || product.name} added to cart (${addQty})!`;
     setTimeout(() => this.successMessage = '', 3000);
   }
@@ -167,18 +183,40 @@ export class Dashboard {
   removeFromCart(productId: string) {
     this.cart = this.cart.filter(item => item._id !== productId);
     this.saveCart();
+    try { this.cd.detectChanges(); } catch (e) {}
+  }
+
+  changeCartQty(productId: string, delta: number) {
+    const idx = this.cart.findIndex(i => i._id === productId);
+    if (idx === -1) return;
+    const cur = Math.floor(Number(this.cart[idx].quantity) || 0);
+    const next = Math.max(1, cur + Math.floor(Number(delta)));
+    this.cart[idx].quantity = next;
+    this.saveCart();
+    try { this.cd.detectChanges(); } catch (e) {}
+  }
+
+  onCartQtyInput(productId: string, value: any) {
+    const idx = this.cart.findIndex(i => i._id === productId);
+    if (idx === -1) return;
+    let n = Number(value);
+    if (!isFinite(n) || n < 1) n = 1;
+    n = Math.floor(n);
+    this.cart[idx].quantity = n;
+    this.saveCart();
+    try { this.cd.detectChanges(); } catch (e) {}
   }
 
   getCartTotal(): number {
     return this.cart.reduce(
-      (sum, item) => sum + ((item.price || 0) * (item.quantity || 1)),
+      (sum, item) => sum + ((Number(item.price) || 0) * (Number(item.quantity) || 1)),
       0
     );
   }
 
   getCartCount(): number {
     return this.cart.reduce(
-      (sum, item) => sum + (item.quantity || 1),
+      (sum, item) => sum + (Number(item.quantity) || 0),
       0
     );
   }

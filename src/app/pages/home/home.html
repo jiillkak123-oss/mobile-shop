@@ -26,7 +26,6 @@
     <p class="hero-subtitle">Discover cutting-edge technology at unbeatable prices</p>
     <div class="hero-buttons">
       <button class="hero-btn primary" (click)="scrollToSection('featured')">Shop Now</button>
-      <button class="hero-btn secondary" (click)="browseDashboard()">Browse Products</button>
     </div>
   </div>
   <div class="hero-pattern"></div>
@@ -40,66 +39,42 @@
       <p class="section-subtitle">Check out our best-selling devices</p>
     </div>
 
-    <div class="products-grid">
-      <div class="product-card">
-        <div class="product-image-wrapper">
-          <img src="/images/i1.webp" alt="iPhone 15 Pro" class="product-image">
-          <span class="product-badge">New</span>
-        </div>
-        <div class="product-info">
-          <h3 class="product-name">iPhone 15 Pro</h3>
-          <div class="product-rating">
-            <span class="stars">★★★★★</span> (245 reviews)
-          </div>
-          <div class="product-price">₹1,29,999</div>
-          <button class="buy-btn">Add to Cart</button>
-        </div>
-      </div>
+    <!-- Loading State -->
+    <div *ngIf="loading" class="loading-spinner">
+      <p>Loading products...</p>
+    </div>
 
-      <div class="product-card">
+    <!-- Products Grid -->
+    <div *ngIf="!loading && products.length > 0" class="products-grid">
+      <div class="product-card" *ngFor="let product of products">
         <div class="product-image-wrapper">
-          <img src="/images/r1.jpg" alt="Samsung Galaxy S24" class="product-image">
-          <span class="product-badge hot">Hot</span>
+          <img 
+            [src]="product.image || '/images/default-phone.jpg'" 
+            [alt]="product.title || 'Product'"
+            title="Mobile phone"
+            class="product-image">
+          <span class="product-badge">Featured</span>
         </div>
         <div class="product-info">
-          <h3 class="product-name">Samsung Galaxy S24</h3>
-          <div class="product-rating">
-            <span class="stars">★★★★☆</span> (189 reviews)
+          <h3 class="product-name">{{ product.title || 'Mobile Phone' }}</h3>
+          <div class="product-price">
+            ₹{{ product.price ? product.price.toLocaleString() : '0' }}
           </div>
-          <div class="product-price">₹89,999</div>
-          <button class="buy-btn">Add to Cart</button>
+          <p class="product-description" *ngIf="product.description">
+            {{ product.description | slice:0:50 }}...
+          </p>
+          <button class="buy-btn" (click)="browseDashboard()">
+            <span *ngIf="isLoggedIn">Add to Cart</span>
+            <span *ngIf="!isLoggedIn">Login to Buy</span>
+          </button>
         </div>
       </div>
+    </div>
 
-      <div class="product-card">
-        <div class="product-image-wrapper">
-          <img src="/images/o1.jpg" alt="Oppo Pro" class="product-image">
-          <span class="product-badge">Sale</span>
-        </div>
-        <div class="product-info">
-          <h3 class="product-name">Oppo Pro Max</h3>
-          <div class="product-rating">
-            <span class="stars">★★★★★</span> (156 reviews)
-          </div>
-          <div class="product-price">₹60,000</div>
-          <button class="buy-btn">Add to Cart</button>
-        </div>
-      </div>
-
-      <div class="product-card">
-        <div class="product-image-wrapper">
-          <img src="/images/i1.webp" alt="iPhone 14" class="product-image">
-          <span class="product-badge">New</span>
-        </div>
-        <div class="product-info">
-          <h3 class="product-name">iPhone 14</h3>
-          <div class="product-rating">
-            <span class="stars">★★★★★</span> (312 reviews)
-          </div>
-          <div class="product-price">₹79,999</div>
-          <button class="buy-btn">Add to Cart</button>
-        </div>
-      </div>
+    <!-- Empty State -->
+    <div *ngIf="!loading && products.length === 0" class="empty-state">
+      <p>No featured products available at the moment.</p>
+      <p>Please check back soon!</p>
     </div>
   </div>
 </section>
@@ -130,40 +105,14 @@
       </div>
       <div class="category-card">
         <div class="category-icon">🟢</div>
-        <h3>OnePlus</h3>
+        <h3>vivo</h3>
         <p>Performance Flagship</p>
       </div>
     </div>
   </div>
 </section>
 
-<!-- FEATURES SECTION -->
-<section class="features-section">
-  <div class="container">
-    <div class="features-grid">
-      <div class="feature-item">
-        <div class="feature-icon">🚚</div>
-        <h3>Free Delivery</h3>
-        <p>On orders above ₹5,000</p>
-      </div>
-      <div class="feature-item">
-        <div class="feature-icon">💳</div>
-        <h3>Secure Payment</h3>
-        <p>100% safe transactions</p>
-      </div>
-      <div class="feature-item">
-        <div class="feature-icon">↩️</div>
-        <h3>Easy Returns</h3>
-        <p>30-day return policy</p>
-      </div>
-      <div class="feature-item">
-        <div class="feature-icon">💬</div>
-        <h3>24/7 Support</h3>
-        <p>Always here to help</p>
-      </div>
-    </div>
-  </div>
-</section>
+
 
 <!-- ABOUT SECTION -->
 <section class="about-section" id="about">
@@ -189,7 +138,7 @@
         </div>
       </div>
       <div class="about-image">
-        <img src="/images/s2.webp" alt="About MobileShop">
+        <img src="/images/b4.avif" alt="About MobileShop" title="About MobileShop">
       </div>
     </div>
   </div>

@@ -1405,6 +1405,11 @@ table tbody tr:hover {
 .orders-table td span.status.Completed { background-color: #28a745; }
 .orders-table td span.status.Cancelled { background-color: #dc3545; }
 
+/* --- Order Item Line --- */
+.order-item-line {
+  margin-bottom: 4px;
+}
+
 /* --- Empty State --- */
 .orders-table div {
   padding: 20px;
@@ -1673,6 +1678,127 @@ table tbody tr:hover {
   margin-bottom: 20px;
 }
 
+/* Chart Container */
+.chart-container {
+  width: 100%;
+  overflow-x: auto;
+  padding: 20px 0;
+}
+
+.chart-wrapper {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  min-width: 600px;
+  height: 350px;
+  padding: 20px;
+  background: linear-gradient(to top, #f9f9f9, white);
+  border-radius: 8px;
+  border: 1px solid #f0f0f0;
+  position: relative;
+}
+
+/* Y-axis labels */
+.chart-y-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  height: 100%;
+  padding-right: 12px;
+  border-right: 1px solid #e0e0e0;
+  min-width: 80px;
+}
+
+.y-label {
+  font-size: 11px;
+  color: #999;
+  font-weight: 500;
+  white-space: nowrap;
+  padding: 0 8px;
+}
+
+/* Chart bars */
+.chart-bars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  flex: 1;
+  gap: 8px;
+  height: 100%;
+  padding: 0 20px;
+}
+
+.bar-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  height: 100%;
+  cursor: pointer;
+}
+
+.bar-group:hover .bar {
+  filter: brightness(1.15);
+  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+}
+
+.bar-wrapper {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-width: 30px;
+}
+
+.bar {
+  width: 100%;
+  background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+  border-radius: 6px 6px 0 0;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  min-height: 10px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+.bar:hover {
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+}
+
+.bar-value {
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 6px;
+  margin-bottom: 6px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+}
+
+.bar-label {
+  font-size: 12px;
+  color: #555;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+  margin-top: 4px;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chart-info {
+  text-align: right;
+  margin-top: 12px;
+  color: #999;
+  font-size: 12px;
+}
+
 .chart-placeholder {
   display: flex;
   align-items: flex-end;
@@ -1714,6 +1840,107 @@ table tbody tr:hover {
   font-size: 12px;
   font-weight: 700;
   margin-bottom: 8px;
+}
+
+/* Filter buttons */
+.filter-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  padding: 8px 16px;
+  background: #f0f0f0;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+  transition: all 0.3s ease;
+}
+
+.filter-btn:hover {
+  background: #e0e0e0;
+}
+
+.filter-btn.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: #667eea;
+}
+
+/* Chart bar container */
+.chart-bar-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 60px;
+}
+
+.chart-date {
+  font-size: 11px;
+  color: #999;
+  text-align: center;
+  margin-top: 8px;
+}
+
+/* Revenue products table */
+.revenue-products {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  margin-top: 16px;
+}
+
+.revenue-products h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 20px;
+}
+
+.products-revenue-table {
+  overflow-x: auto;
+}
+
+.products-revenue-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.products-revenue-table th,
+.products-revenue-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 14px;
+}
+
+.products-revenue-table th {
+  background: #f5f5f5;
+  font-weight: 600;
+  color: #333;
+}
+
+.products-revenue-table tr:hover {
+  background: #fafafa;
+}
+
+/* No data message */
+.no-data-message {
+  padding: 40px;
+  text-align: center;
+  color: #999;
+}
+
+.no-data-cell {
+  text-align: center;
+  color: #999;
 }
 
 .setting-input-group {

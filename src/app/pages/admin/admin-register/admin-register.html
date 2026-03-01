@@ -8,19 +8,22 @@
       <span>{{ errorMessage }}</span>
     </div>
 
-    <form (ngSubmit)="register()" (keydown)="onKeyDown($event)">
+    <form [formGroup]="registerForm" (ngSubmit)="register()" (keydown)="onKeyDown($event)">
       <div class="input-group">
         <label for="name">Full Name</label>
         <input 
           type="text" 
           id="name" 
-          [(ngModel)]="name" 
-          name="name" 
+          formControlName="name" 
           placeholder="Enter full name"
           autocomplete="name"
           [disabled]="loading"
-          required 
         />
+        <div *ngIf="registerForm.get('name')?.touched && nameErrors" class="input-error">
+          <small *ngIf="nameErrors['required']">Name is required</small>
+          <small *ngIf="nameErrors['minlength']">Name must be at least 3 characters</small>
+          <small *ngIf="nameErrors['maxlength']">Name must not exceed 50 characters</small>
+        </div>
       </div>
 
       <div class="input-group">
@@ -28,13 +31,15 @@
         <input 
           type="email" 
           id="email" 
-          [(ngModel)]="email" 
-          name="email" 
+          formControlName="email" 
           placeholder="Enter email"
           autocomplete="email"
           [disabled]="loading"
-          required 
         />
+        <div *ngIf="registerForm.get('email')?.touched && emailErrors" class="input-error">
+          <small *ngIf="emailErrors['required']">Email is required</small>
+          <small *ngIf="emailErrors['email']">Please enter a valid email address</small>
+        </div>
       </div>
 
       <div class="input-group">
@@ -42,13 +47,16 @@
         <input 
           type="password" 
           id="password" 
-          [(ngModel)]="password" 
-          name="password" 
-          placeholder="Enter password (min 6 characters)"
+          formControlName="password" 
+          placeholder="Enter password (min 6 characters, uppercase, lowercase, numbers)"
           autocomplete="new-password"
           [disabled]="loading"
-          required 
         />
+        <div *ngIf="registerForm.get('password')?.touched && passwordErrors" class="input-error">
+          <small *ngIf="passwordErrors['required']">Password is required</small>
+          <small *ngIf="passwordErrors['minlength']">Password must be at least 6 characters</small>
+          <small *ngIf="passwordErrors['passwordStrength']">Password must contain uppercase, lowercase, and numbers</small>
+        </div>
       </div>
 
       <div class="input-group">
@@ -56,32 +64,37 @@
         <input 
           type="password" 
           id="confirmPassword" 
-          [(ngModel)]="confirmPassword" 
-          name="confirmPassword" 
+          formControlName="confirmPassword" 
           placeholder="Confirm password"
           autocomplete="new-password"
           [disabled]="loading"
-          [class.error]="getPasswordMatchError()"
-          required 
         />
-        <span *ngIf="getPasswordMatchError()" class="input-error">Passwords do not match</span>
+        <div *ngIf="registerForm.get('confirmPassword')?.touched && confirmPasswordErrors" class="input-error">
+          <small *ngIf="confirmPasswordErrors['required']">Please confirm your password</small>
+        </div>
+        <div *ngIf="registerForm.errors?.['passwordMismatch'] && registerForm.get('confirmPassword')?.touched" class="input-error">
+          <small>Passwords do not match</small>
+        </div>
       </div>
 
       <div class="input-group">
-        <label for="masterCode">Master Admin Code</label>
+        <label for="masterAdminCode">Master Admin Code</label>
         <input 
           type="password" 
-          id="masterCode" 
-          [(ngModel)]="masterAdminCode" 
-          name="masterAdminCode" 
-          placeholder="Enter master admin code"
+          id="masterAdminCode" 
+          formControlName="masterAdminCode" 
+          placeholder="Enter master admin code (min 4 characters)"
+          autocomplete="off"
           [disabled]="loading"
-          required 
         />
-        <span class="input-hint">Required to create an admin account</span>
+        <div *ngIf="registerForm.get('masterAdminCode')?.touched && masterAdminCodeErrors" class="input-error">
+          <small *ngIf="masterAdminCodeErrors['required']">Master admin code is required</small>
+          <small *ngIf="masterAdminCodeErrors['minlength']">Master admin code must be at least 4 characters</small>
+          <small *ngIf="masterAdminCodeErrors['maxlength']">Master admin code must not exceed 50 characters</small>
+        </div>
       </div>
 
-      <button type="submit" [disabled]="loading || getPasswordMatchError()" class="btn-register">
+      <button type="submit" [disabled]="registerForm.invalid || loading" class="btn-register">
         <span *ngIf="!loading">Register as Admin</span>
         <span *ngIf="loading">
           <span class="spinner"></span>

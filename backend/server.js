@@ -87,6 +87,16 @@ app.get('/api/products', async (req, res) => {
   }
 });
 
+// Get all categories
+app.get('/api/categories', async (req, res) => {
+  try {
+    const categories = await Product.distinct('category');
+    res.json(categories.sort());
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Create product - supports FormData file upload (field 'image') or JSON body
 app.post('/api/products', upload.single('image'), async (req, res) => {
   try {

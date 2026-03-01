@@ -10,6 +10,7 @@
           <span *ngIf="getCartCount() > 0" class="cart-count">{{ getCartCount() }}</span>
         </button>
         <button class="logout-btn" (click)="logout()">Logout</button>
+        <button class="admin-btn" type="button" (click)="adminLogin()">Admin Login</button>
       </div>
     </div>
   </header>
@@ -31,35 +32,35 @@
         <div class="stat-icon">🛒</div>
         <div class="stat-content">
           <h3>Total Orders</h3>
-          <p class="stat-number">12</p>
+          <p class="stat-number">{{ orders.length }}</p>
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon">💾</div>
+        <div class="stat-icon">📱</div>
         <div class="stat-content">
-          <h3>Wishlist Items</h3>
-          <p class="stat-number">8</p>
+          <h3>Total Products</h3>
+          <p class="stat-number">{{ products.length }}</p>
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon">⭐</div>
+        <div class="stat-icon">💵</div>
         <div class="stat-content">
-          <h3>Reward Points</h3>
-          <p class="stat-number">450</p>
+          <h3>Cart Total</h3>
+          <p class="stat-number">${{ getCartTotal().toFixed(2) }}</p>
         </div>
       </div>
       <div class="stat-card">
         <div class="stat-icon">📦</div>
         <div class="stat-content">
-          <h3>Active Orders</h3>
-          <p class="stat-number">2</p>
+          <h3>Cart Items</h3>
+          <p class="stat-number">{{ getCartCount() }}</p>
         </div>
       </div>
     </section>
 
-    <!-- Featured Products Section -->
+    <!-- All Products Section -->
     <section class="products-section">
-      <h2>Featured Phones</h2>
+      <h2>📱 All Products ({{ products.length }})</h2>
       <div class="product-filters">
         <div  class="category-list">
           <button *ngFor="let c of categories"
@@ -92,34 +93,48 @@
       </div>
     </section>
 
-    <!-- Recent Orders Section -->
+    <!-- All Orders Section -->
     <section class="orders-section">
-      <h2>Recent Orders</h2>
-      <div class="orders-table">
+      <h2>📋 All Orders ({{ orders.length }})</h2>
+      <div class="orders-table" *ngIf="orders.length > 0; else noOrders">
         <table>
           <thead>
             <tr>
               <th>Order ID</th>
-              <th>Product</th>
-              <th>Price</th>
+              <th>Items</th>
+              <th>Total Price</th>
               <th>Status</th>
               <th>Date</th>
             </tr>
           </thead>
           <tbody>
             <tr *ngFor="let o of orders">
-              <td>{{ o._id }}</td>
-              <td>{{ (o.items && o.items.length) ? (o.items[0].product || 'Item') : '—' }}</td>
-              <td>{{ o.totalPrice ? ('$' + o.totalPrice) : '-' }}</td>
-              <td><span class="status-badge">{{ o.status }}</span></td>
-              <td>{{ o.createdAt | date:'mediumDate' }}</td>
-            </tr>
-            <tr *ngIf="orders.length === 0">
-              <td colspan="5">No recent orders</td>
+              <td>
+                <span class="order-id-badge">{{ (o._id || 'N/A').substring(0, 8) }}...</span>
+              </td>
+              <td>
+                <span class="item-count">{{ (o.items && o.items.length) ? o.items.length + ' item(s)' : 'No items' }}</span>
+                <div class="item-list" *ngIf="o.items && o.items.length > 0">
+                  <small *ngFor="let item of o.items">
+                    • {{ (item.product && item.product.title) ? item.product.title : item.product }} (Qty: {{ item.quantity }})
+                  </small>
+                </div>
+              </td>
+              <td><strong>${{ o.totalPrice ? o.totalPrice.toFixed(2) : '0.00' }}</strong></td>
+              <td>
+                <span class="status-badge"
+                      [ngClass]="'status-' + (o.status || 'processing')">
+                  {{ o.status || 'Pending' }}
+                </span>
+              </td>
+              <td>{{ o.createdAt | date:'short' }}</td>
             </tr>
           </tbody>
         </table>
       </div>
+      <ng-template #noOrders>
+        <div class="empty-note">No orders yet</div>
+      </ng-template>
     </section>
   </div>
 </div>
@@ -144,8 +159,20 @@
           <div class="item-details">
             <h4>{{ item.title || item.name }}</h4>
             <p class="item-price">${{ item.price }}</p>
-            <p class="item-qty">Qty: {{ item.quantity || 1 }}</p>
-            <p class="item-subtotal">Subtotal: ${{ ((item.price || 0) * (item.quantity || 1)).toFixed(2) }}</p>
+            <div class="item-qty">
+              <label [attr.for]="'cart-qty-' + item._id">Qty:</label>
+              <div class="qty-control">
+                <button type="button" class="qty-btn" (click)="changeCartQty(item._id, -1)">-</button>
+                <input type="number" min="1" step="1" class="qty-input" [id]="'cart-qty-' + item._id"
+                       [value]="item.quantity || 1"
+                       placeholder="Qty"
+                       title="Quantity"
+                       aria-label="Quantity"
+                       (input)="onCartQtyInput(item._id, $any($event.target).value)" />
+                <button type="button" class="qty-btn" (click)="changeCartQty(item._id, 1)">+</button>
+              </div>
+            </div>
+            <p class="item-subtotal">Subtotal: ${{ (((item.price || 0) * (item.quantity || 1)) | number:'1.2-2') }}</p>
           </div>
           <button class="btn-remove" type="button" (click)="removeFromCart(item._id)">Remove</button>
         </div>

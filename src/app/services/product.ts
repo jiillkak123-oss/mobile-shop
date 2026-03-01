@@ -7,6 +7,7 @@ import { Observable } from 'rxjs';
 })
 export class ProductService {
   private apiUrl = 'http://localhost:3000/api/products';
+  private baseUrl = 'http://localhost:3000/api';
 
   constructor(private http: HttpClient) {}
 
@@ -30,7 +31,7 @@ export class ProductService {
   // Admin product list (requires auth)
   getAllAdmin(): Observable<any> {
     const headers = this.authHeaders();
-    return this.http.get('http://localhost:3000/api/admin/all-products', { headers });
+    return this.http.get(`${this.baseUrl}/admin/all-products`, { headers });
   }
 
   getAll(): Observable<any> {
@@ -43,6 +44,10 @@ export class ProductService {
 
   getByCategory(category: string): Observable<any> {
     return this.http.get(`${this.apiUrl}/category/${category}`);
+  }
+
+  getAllCategories(): Observable<any> {
+    return this.http.get(`${this.baseUrl}/categories`);
   }
 
   create(product: any): Observable<any> {

@@ -1,31 +1,53 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
 import { AuthService } from '../../services/auth';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterModule],
   templateUrl: './login.html',
   styleUrls: ['./login.css'] 
 })
-export class Login {
+export class Login implements OnInit {
 
-  email = '';
-  password = '';
+  loginForm!: FormGroup;
   loading = false;
+  errorMessage = '';
+  serverError = '';
 
-  constructor(private authService: AuthService, private router: Router) {}
+  constructor(
+    private authService: AuthService,
+    private router: Router,
+    private formBuilder: FormBuilder
+  ) {}
 
-  login() {
-    if (!this.email || !this.password) {
-      alert('Please provide email and password');
+  ngOnInit(): void {
+    this.initializeForm();
+  }
+
+  private initializeForm(): void {
+    this.loginForm = this.formBuilder.group({
+      email: ['', [Validators.required, Validators.email]],
+      password: ['', [Validators.required, Validators.minLength(6)]]
+    });
+  }
+
+  login(): void {
+    this.errorMessage = '';
+    this.serverError = '';
+
+    if (this.loginForm.invalid) {
+      this.errorMessage = 'Please fill in all fields correctly';
       return;
     }
+
     this.loading = true;
-    this.authService.login(this.email, this.password).subscribe(
+    const { email, password } = this.loginForm.value;
+
+    this.authService.login(email, password).subscribe(
       (response: any) => {
         this.loading = false;
         const user = response?.user || response;
@@ -36,13 +58,21 @@ export class Login {
           if (user.role === 'admin') this.router.navigate(['/admin/dashboard']); else this.router.navigate(['/dashboard']);
         } else {
           // unexpected response
-          alert('Login failed: unexpected server response');
+          this.serverError = 'Login failed: unexpected server response';
         }
       },
       (error: any) => {
         this.loading = false;
-        alert(error.error?.error || error.error?.message || 'Login failed');
+        this.serverError = error.error?.error || error.error?.message || 'Login failed';
       }
     );
+  }
+
+  get emailErrors(): any {
+    return this.loginForm.get('email')?.errors;
+  }
+
+  get passwordErrors(): any {
+    return this.loginForm.get('password')?.errors;
   }
 }
