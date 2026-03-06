@@ -1,4 +1,41 @@
 <div class="dashboard-container">
+  <!-- Add Review Modal (positioned at top for proper z-index) -->
+  <div *ngIf="showAddReviewModal" class="modal-overlay" (click)="closeAddReviewModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Add Review</h2>
+        <button class="close-btn" (click)="closeAddReviewModal()" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="reviewProduct">Select Product</label>
+          <select id="reviewProduct" [(ngModel)]="newReview.productId" name="reviewProduct">
+            <option value="null">-- Select a product --</option>
+            <option *ngFor="let p of products" [value]="p._id">{{ p.title }}</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="reviewRating">Rating</label>
+          <select id="reviewRating" [(ngModel)]="newReview.rating" name="reviewRating">
+            <option value="5">⭐⭐⭐⭐⭐ Excellent (5)</option>
+            <option value="4">⭐⭐⭐⭐ Very Good (4)</option>
+            <option value="3">⭐⭐⭐ Good (3)</option>
+            <option value="2">⭐⭐ Fair (2)</option>
+            <option value="1">⭐ Poor (1)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="reviewText">Your Review</label>
+          <textarea id="reviewText" [(ngModel)]="newReview.text" name="reviewText" rows="4" placeholder="Share your experience with this product..."></textarea>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-cancel" (click)="closeAddReviewModal()" type="button">Cancel</button>
+          <button class="btn-submit" (click)="submitReview()" type="button" [disabled]="!newReview.productId || !newReview.text.trim()">Submit Review</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Header -->
   <header class="dashboard-header">
     <div class="header-content">
@@ -105,6 +142,7 @@
               <th>Total Price</th>
               <th>Status</th>
               <th>Date</th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody>
@@ -128,12 +166,37 @@
                 </span>
               </td>
               <td>{{ o.createdAt | date:'short' }}</td>
+              <td>
+                <button class="btn-bill" type="button" (click)="viewBill(o)" title="View Invoice">📄 Bill</button>
+              </td>
             </tr>
           </tbody>
         </table>
       </div>
       <ng-template #noOrders>
         <div class="empty-note">No orders yet</div>
+      </ng-template>
+    </section>
+
+    <!-- Reviews Section -->
+    <section class="reviews-section">
+      <h2>⭐ My Reviews ({{ reviews.length }})</h2>
+      <button class="btn-primary" type="button" (click)="openAddReviewModal()">+ Add Review</button>
+      <div class="reviews-container" *ngIf="reviews.length > 0; else noReviews">
+        <div *ngFor="let review of reviews" class="review-card">
+          <div class="review-header">
+            <div class="review-rating">
+              <span class="stars">{{ '★'.repeat(review.rating) }}{{ '☆'.repeat(5 - review.rating) }}</span>
+              <span class="rating-text">({{ review.rating }}/5)</span>
+            </div>
+            <span class="review-date">{{ review.createdAt | date:'MMM d, y' }}</span>
+          </div>
+          <p class="review-product" *ngIf="review.product?.title"><strong>Product:</strong> {{ review.product.title }}</p>
+          <p class="review-text">{{ review.text }}</p>
+        </div>
+      </div>
+      <ng-template #noReviews>
+        <div class="empty-note">No reviews yet. Add your first review!</div>
       </ng-template>
     </section>
   </div>
@@ -191,6 +254,85 @@
     <div class="cart-modal-footer">
       <button class="btn-cancel" (click)="toggleCart()" type="button">Continue Shopping</button>
       <button class="btn-checkout" (click)="checkout()" type="button" [disabled]="cart.length === 0">Checkout</button>
+    </div>
+  </div>
+</div>
+<!-- Bill/Invoice Modal -->
+<div *ngIf="showBillModal" class="bill-modal-overlay" (click)="closeBillModal()">
+  <div class="bill-modal" (click)="$event.stopPropagation()">
+    <div class="bill-modal-header">
+      <h2>📄 Invoice</h2>
+      <button class="close-btn" (click)="closeBillModal()" type="button">✕</button>
+    </div>
+    
+    <div class="bill-container" *ngIf="selectedOrder">
+      <!-- Bill Header -->
+      <div class="bill-header">
+        <div class="bill-logo">
+          <h1>📱 Mobile Shop</h1>
+        </div>
+        <div class="bill-info">
+          <p><strong>Invoice No:</strong> {{ (selectedOrder._id || 'N/A').substring(0, 12) }}</p>
+          <p><strong>Date:</strong> {{ selectedOrder.createdAt | date:'MMM d, yyyy' }}</p>
+          <p><strong>Status:</strong> <span class="status-badge" [ngClass]="'status-' + (selectedOrder.status || 'processing')">{{ selectedOrder.status || 'Pending' }}</span></p>
+        </div>
+      </div>
+
+      <!-- Items Table -->
+      <div class="bill-section">
+        <h3>Order Items</h3>
+        <table class="bill-items-table">
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th align="right">Price</th>
+              <th align="right">Qty</th>
+              <th align="right">Subtotal</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of selectedOrder.items">
+              <td>{{ (item.product && item.product.title) ? item.product.title : 'Product' }}</td>
+              <td align="right">${{ (item.price || 0).toFixed(2) }}</td>
+              <td align="right">{{ item.quantity }}</td>
+              <td align="right"><strong>${{ ((item.price || 0) * (item.quantity || 0)).toFixed(2) }}</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Calculations -->
+      <div class="bill-calculations">
+        <div class="calc-row">
+          <span>Subtotal:</span>
+          <span class="amount">${{ calculateSubtotal(selectedOrder).toFixed(2) }}</span>
+        </div>
+        <div class="calc-row">
+          <span>Tax (10%):</span>
+          <span class="amount">${{ calculateTax(selectedOrder).toFixed(2) }}</span>
+        </div>
+        <div class="calc-row">
+          <span>Shipping:</span>
+          <span class="amount">${{ SHIPPING_COST.toFixed(2) }}</span>
+        </div>
+        <div class="calc-row total">
+          <span><strong>Total:</strong></span>
+          <span class="amount"><strong>${{ calculateTotal(selectedOrder).toFixed(2) }}</strong></span>
+        </div>
+      </div>
+
+      <!-- Terms -->
+      <div class="bill-terms">
+        <p class="text-center">Thank you for your purchase! 🎉</p>
+        <p class="text-center small">Please keep this invoice for your records.</p>
+      </div>
+    </div>
+
+    <!-- Modal Footer -->
+    <div class="bill-modal-footer">
+      <button class="btn-action" type="button" (click)="printBill()">🖨️ Print</button>
+      <button class="btn-action" type="button" (click)="downloadBill()">⬇️ Download</button>
+      <button class="btn-cancel" (click)="closeBillModal()" type="button">Close</button>
     </div>
   </div>
 </div>

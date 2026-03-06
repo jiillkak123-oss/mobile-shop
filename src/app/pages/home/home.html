@@ -7,8 +7,15 @@
       <a href="#featured">Featured</a>
       <a href="#categories">Categories</a>
       <a href="#about">About</a>
-      <a routerLink="/login" class="login-btn" routerLinkActive="active">Login</a>
-      <a routerLink="/register" class="register-btn" routerLinkActive="active">Register</a>
+      <ng-container *ngIf="!isLoggedIn; else loggedInLinks">
+        <a routerLink="/login" class="login-btn" routerLinkActive="active">Login</a>
+        <a routerLink="/register" class="register-btn" routerLinkActive="active">Register</a>
+        <!-- admin access -->
+        <a routerLink="/admin/login" class="admin-btn" routerLinkActive="active">Admin</a>
+      </ng-container>
+      <ng-template #loggedInLinks>
+        <button class="logout-btn" type="button" (click)="logout()">Logout</button>
+      </ng-template>
     </div>
     <div class="hamburger">
       <span></span>
@@ -26,6 +33,7 @@
     <p class="hero-subtitle">Discover cutting-edge technology at unbeatable prices</p>
     <div class="hero-buttons">
       <button class="hero-btn primary" (click)="scrollToSection('featured')">Shop Now</button>
+      <button class="hero-btn secondary" (click)="navigateToAdminLogin()">Admin Login</button>
     </div>
   </div>
   <div class="hero-pattern"></div>
@@ -63,10 +71,13 @@
           <p class="product-description" *ngIf="product.description">
             {{ product.description | slice:0:50 }}...
           </p>
-          <button class="buy-btn" (click)="browseDashboard()">
-            <span *ngIf="isLoggedIn">Add to Cart</span>
-            <span *ngIf="!isLoggedIn">Login to Buy</span>
-          </button>
+          <div class="product-actions-row">
+            <button class="buy-btn" (click)="browseDashboard()">
+              <span *ngIf="isLoggedIn">Add to Cart</span>
+              <span *ngIf="!isLoggedIn">Login to Buy</span>
+            </button>
+            <button class="review-btn" type="button" (click)="openReviewModal(product)">✍️ Add Review</button>
+          </div>
         </div>
       </div>
     </div>
@@ -88,25 +99,10 @@
     </div>
 
     <div class="categories-grid">
-      <div class="category-card">
+      <div *ngFor="let brand of brands" class="category-card" (click)="navigateToBrand(brand)" tabindex="0" role="button">
         <div class="category-icon">📱</div>
-        <h3>Apple</h3>
-        <p>Latest iPhones & Models</p>
-      </div>
-      <div class="category-card">
-        <div class="category-icon">🔷</div>
-        <h3>Samsung</h3>
-        <p>Galaxy Series</p>
-      </div>
-      <div class="category-card">
-        <div class="category-icon">🔵</div>
-        <h3>Oppo</h3>
-        <p>Innovation & Style</p>
-      </div>
-      <div class="category-card">
-        <div class="category-icon">🟢</div>
-        <h3>vivo</h3>
-        <p>Performance Flagship</p>
+        <h3>{{ brand }}</h3>
+        <p>See all {{ brand }} phones</p>
       </div>
     </div>
   </div>
@@ -143,6 +139,29 @@
     </div>
   </div>
 </section>
+
+<!-- Review Modal -->
+<div *ngIf="showReviewModal" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Add Review</h3>
+      <button class="close-btn" (click)="closeReviewModal()">✖</button>
+    </div>
+    <div class="modal-body">
+      <label>Rating</label>
+      <select [(ngModel)]="reviewForm.rating">
+        <option *ngFor="let r of [5,4,3,2,1]" [value]="r">{{ r }} Star{{ r>1 ? 's' : '' }}</option>
+      </select>
+      <label>Review</label>
+      <textarea [(ngModel)]="reviewForm.text" rows="4" placeholder="Write your experience..."></textarea>
+      <div class="modal-actions">
+        <button class="btn-primary" (click)="submitReview()">Submit</button>
+        <button class="btn-secondary" (click)="closeReviewModal()">Cancel</button>
+      </div>
+      <p class="status-message">{{ reviewStatusMessage }}</p>
+    </div>
+  </div>
+</div>
 
 <!-- NEWSLETTER SECTION -->
 <section class="newsletter-section">

@@ -1,12 +1,15 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule, Router } from '@angular/router';
+import { FormsModule } from '@angular/forms';
+import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../services/auth';
+import { ReviewService } from '../../services/review';
+import { BRANDS, BRAND_KEYWORDS } from '../../shared/brand-constants';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, FormsModule],
   templateUrl: './dashboard.html',
   styleUrls: ['./dashboard.css'],
 })
@@ -16,25 +19,55 @@ export class Dashboard implements OnInit {
   loading = false;
   products: any[] = [];
   filteredProducts: any[] = [];
-  categories: string[] = ['All', 'Oppo', 'Vivo', 'Realme', 'Samsung', 'Apple','Redmi','Oneplus','Motorola'];
+  categories: string[] = BRANDS;          // use shared list
   selectedCategory: string = 'All';
   cart: any[] = [];
   showCart = false;
   successMessage: string = '';
   errorMessage: string = '';
   sessionNotice: string = '';
+  // Reviews
+  reviews: any[] = [];
+  showAddReviewModal = false;
+  newReview = { productId: null as string | null, rating: 5, text: '' };
+  // Bill System
+  showBillModal = false;
+  selectedOrder: any = null;
+  TAX_RATE = 0.10; // 10% tax
+  SHIPPING_COST = 10; // flat $10 shipping
 
-  constructor(private auth: AuthService, private router: Router, private cd: ChangeDetectorRef) {
+  constructor(
+    private auth: AuthService,
+    private router: Router,
+    private route: ActivatedRoute,
+    private cd: ChangeDetectorRef,
+    private reviewService: ReviewService
+  ) {
     this.user = this.auth.getCurrentUser();
   }
 
   ngOnInit(): void {
+    // ensure user is authenticated in case guard was bypassed
+    if (!this.auth.isLoggedIn()) {
+      // if route had a returnUrl or query param we leave it alone, guard should redirect
+      this.router.navigate(['/login'], { queryParams: { returnUrl: this.router.url } });
+      return;
+    }
+
     this.loadCart();
     void this.loadProfile();
+    this.loadReviews();
   }
 
   async loadProfile() {
     this.loading = true;
+    // if queryparam "cat" provided, set category filter early
+    this.route.queryParams.subscribe(params => {
+      if (params['cat']) {
+        this.onCategoryChange(params['cat']);
+      }
+    });
+
     try {
       const token = this.auth.getToken();
 
@@ -75,17 +108,17 @@ export class Dashboard implements OnInit {
           console.warn('Failed to load user profile', e);
         }
 
-        // Load all orders from server (includes public and user orders) to ensure none are omitted
+        // Load user's personal orders only
         try {
-          const allRes = await fetch('http://localhost:3000/api/orders/all', { headers });
-          if (allRes.ok) {
-            this.orders = await allRes.json();
+          const myRes = await fetch('http://localhost:3000/api/my-orders', { headers });
+          if (myRes.ok) {
+            this.orders = await myRes.json();
             try { this.cd.detectChanges(); } catch (e) {}
           } else {
             this.orders = [];
           }
         } catch (e) {
-          console.warn('Failed to load all orders', e);
+          console.warn('Failed to load user orders', e);
           this.orders = [];
         }
       }
@@ -129,10 +162,12 @@ export class Dashboard implements OnInit {
     }
 
     const cat = this.selectedCategory.toLowerCase();
+    const keywords = BRAND_KEYWORDS[this.selectedCategory] || [cat];
     this.filteredProducts = (this.products || []).filter((p: any) => {
       const c = (p.category || '').toString().toLowerCase();
       const title = (p.title || p.name || '').toString().toLowerCase();
-      return c.includes(cat) || title.includes(cat);
+      // check against all keywords for the selected brand
+      return keywords.some(k => c.includes(k) || title.includes(k));
     });
   }
 
@@ -325,5 +360,138 @@ export class Dashboard implements OnInit {
       this.errorMessage = msg;
       setTimeout(() => this.errorMessage = '', 3000);
     }
+  }
+
+  // ================= REVIEWS =================
+  loadReviews() {
+    const token = this.auth.getToken();
+    if (!token) {
+      this.reviews = [];
+      return;
+    }
+
+    this.reviewService.getAll().subscribe({
+      next: (data: any) => {
+        if (Array.isArray(data)) {
+          // Filter only reviews created by current user
+          const userId = this.user?._id;
+          this.reviews = data.filter((r: any) => r.user?._id === userId);
+        } else {
+          this.reviews = [];
+        }
+      },
+      error: (err) => {
+        console.error('Failed to load reviews:', err);
+        this.reviews = [];
+      }
+    });
+  }
+
+  openAddReviewModal() {
+    this.newReview = { productId: null, rating: 5, text: '' };
+    this.showAddReviewModal = true;
+  }
+
+  closeAddReviewModal() {
+    this.showAddReviewModal = false;
+    this.newReview = { productId: null, rating: 5, text: '' };
+  }
+
+  submitReview() {
+    const token = this.auth.getToken();
+    if (!token) {
+      // shouldn't happen since add-review modal is only available to logged-in users
+      this.errorMessage = 'You must be logged in to add a review';
+      setTimeout(() => this.errorMessage = '', 3000);
+      return;
+    }
+
+    this.reviewService.create(this.newReview.productId, this.newReview.rating, this.newReview.text, token).subscribe({
+      next: (res: any) => {
+        this.successMessage = 'Review added successfully!';
+        this.reviews.unshift(res);
+        this.closeAddReviewModal();
+        setTimeout(() => this.successMessage = '', 3000);
+      },
+      error: (err) => {
+        console.error('Failed to add review', err);
+        this.errorMessage = 'Failed to add review. Try again later.';
+        setTimeout(() => this.errorMessage = '', 3000);
+      }
+    });
+  }
+
+  // ================= BILL/INVOICE SYSTEM =================
+
+  viewBill(order: any) {
+    this.selectedOrder = order;
+    this.showBillModal = true;
+  }
+
+  closeBillModal() {
+    this.showBillModal = false;
+    this.selectedOrder = null;
+  }
+
+  calculateSubtotal(order: any): number {
+    if (!order.items || order.items.length === 0) return 0;
+    return order.items.reduce((sum: number, item: any) => {
+      return sum + ((item.price || 0) * (item.quantity || 0));
+    }, 0);
+  }
+
+  calculateTax(order: any): number {
+    const subtotal = this.calculateSubtotal(order);
+    return subtotal * this.TAX_RATE;
+  }
+
+  calculateTotal(order: any): number {
+    const subtotal = this.calculateSubtotal(order);
+    const tax = this.calculateTax(order);
+    return subtotal + tax + this.SHIPPING_COST;
+  }
+
+  printBill() {
+    window.print();
+  }
+
+  downloadBill() {
+    if (!this.selectedOrder) return;
+    const order = this.selectedOrder;
+    const subtotal = this.calculateSubtotal(order);
+    const tax = this.calculateTax(order);
+    const total = this.calculateTotal(order);
+    
+    let billText = `INVOICE\n`;
+    billText += `${'='.repeat(40)}\n\n`;
+    billText += `Order ID: ${order._id}\n`;
+    billText += `Date: ${new Date(order.createdAt).toLocaleDateString()}\n`;
+    billText += `Status: ${order.status}\n\n`;
+    billText += `${'='.repeat(40)}\n`;
+    billText += `ITEMS:\n`;
+    billText += `-`.repeat(40) + `\n`;
+    
+    order.items.forEach((item: any) => {
+      const itemName = item.product?.title || item.product || 'Product';
+      const lineTotal = (item.price || 0) * (item.quantity || 0);
+      billText += `${itemName}\n`;
+      billText += `  Qty: ${item.quantity} × $${item.price?.toFixed(2)} = $${lineTotal.toFixed(2)}\n`;
+    });
+    
+    billText += `-`.repeat(40) + `\n`;
+    billText += `Subtotal: $${subtotal.toFixed(2)}\n`;
+    billText += `Tax (10%): $${tax.toFixed(2)}\n`;
+    billText += `Shipping: $${this.SHIPPING_COST.toFixed(2)}\n`;
+    billText += `${'='.repeat(40)}\n`;
+    billText += `TOTAL: $${total.toFixed(2)}\n`;
+    billText += `${'='.repeat(40)}\n`;
+    
+    const element = document.createElement('a');
+    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(billText));
+    element.setAttribute('download', `bill-${order._id?.substring(0, 8) || 'unknown'}.txt`);
+    element.style.display = 'none';
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
   }
 }

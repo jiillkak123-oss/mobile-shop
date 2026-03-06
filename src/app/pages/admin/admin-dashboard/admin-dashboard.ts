@@ -4,9 +4,10 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
 import { ProductService } from '../../../services/product';
 import { OrderService } from '../../../services/order';
+import { ReviewService } from '../../../services/review';
 import { HttpClientModule, HttpClient } from '@angular/common/http';
 // Type for navigation sections
-export type NavSection = 'dashboard' | 'products' | 'orders' | 'users' | 'revenue' | 'reviews' | 'settings';
+export type NavSection = 'dashboard' | 'products' | 'orders' | 'users' | 'revenue' | 'reviews';
 
 interface Order {
   _id: string;
@@ -31,12 +32,13 @@ export class AdminDashboardComponent implements OnInit {
   activeNav: NavSection = 'dashboard';
   adminName: string = 'Admin User';
   searchQuery: string = '';
+  // Categories matching user dashboard
+  categories: string[] = ['Oppo', 'Vivo', 'Realme', 'Samsung', 'Apple', 'Redmi', 'Oneplus', 'Motorola'];
 
   // Modal states
   showAddProductModal: boolean = false;
   showAddUserModal: boolean = false;
   showReportModal: boolean = false;
-  showEmailModal: boolean = false;
 
   // Product form
   productForm = {
@@ -52,6 +54,15 @@ export class AdminDashboardComponent implements OnInit {
 
   // Orders & Users
   orders: any[] = [];
+  // Reviews
+  reviews: any[] = [];
+  filteredReviews: any[] = [];
+  // filters
+  reviewRatingFilter: string = 'all';
+  reviewSearchQuery: string = '';
+  // Review modal for admin
+  showAddReviewModal = false;
+  newReview = { productId: null as string | null, rating: 5, text: '' };
   selectedOrder: Order | null = null;
   users: any[] = [];
 
@@ -71,13 +82,6 @@ export class AdminDashboardComponent implements OnInit {
     format: 'pdf'
   };
 
-  // Email form
-  emailForm = {
-    recipient: '',
-    subject: '',
-    message: ''
-  };
-
   // Messages
   successMessage: string = '';
   errorMessage: string = '';
@@ -88,6 +92,7 @@ export class AdminDashboardComponent implements OnInit {
   useBackend: boolean = true;
   isEditing: boolean = false;
   editingProductId: string | null = null;
+  editingUserId: string | null = null;
   isLoadingProducts: boolean = false;
 
   // ✅ REVENUE TRACKING
@@ -111,15 +116,153 @@ export class AdminDashboardComponent implements OnInit {
   constructor(
     private orderService: OrderService,
     private productService: ProductService,
+    private reviewService: ReviewService,
     private router: Router
   ) {}
 
   ngOnInit(): void {
     this.loadOrdersForRevenue();
     this.loadOrders();
+    this.loadReviews();
     this.loadProducts();
     this.loadUsers();
     this.checkAdminToken();
+  }
+
+  // Load reviews (admin)
+  loadReviews() {
+    const token = localStorage.getItem('admin-token');
+    if (!token) {
+      this.reviews = [];
+      return;
+    }
+
+    fetch('http://localhost:3000/api/admin/all-reviews', {
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json())
+    .then((data: any) => {
+      if (Array.isArray(data)) {
+        this.reviews = data;
+      } else {
+        this.reviews = [];
+      }
+      this.applyReviewFilters();
+    })
+    .catch(err => {
+      console.error('Failed to load reviews:', err);
+      this.reviews = [];
+      this.applyReviewFilters();
+    });
+  }
+
+  // Admin: delete a review
+  deleteReview(reviewId: string) {
+    if (!confirm('Delete this review?')) return;
+    const token = localStorage.getItem('admin-token');
+    if (!token) return;
+    // remove immediately from UI
+    const originalIndex = this.filteredReviews.findIndex(r => r._id === reviewId);
+    if (originalIndex !== -1) {
+      this.filteredReviews.splice(originalIndex, 1);
+    }
+    this.reviews = this.reviews.filter(r => r._id !== reviewId);
+    this.successMessage = 'Review deleted';
+    this.clearMessages();
+    
+    // then sync with server
+    fetch(`http://localhost:3000/api/admin/reviews/${reviewId}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } })
+      .then(res => res.json())
+      .then(() => {
+        // server confirmed, all good
+      })
+      .catch(err => {
+        console.error('Failed to delete review:', err);
+        // reload on error to ensure consistency
+        this.loadReviews();
+        this.errorMessage = 'Failed to delete review';
+        this.clearMessages();
+      });
+  }
+
+
+  // Admin: open add-review modal
+  openAddReviewModal() {
+    this.newReview = { productId: null, rating: 5, text: '' };
+    this.showAddReviewModal = true;
+  }
+
+  applyReviewFilters() {
+    let result = [...this.reviews];
+    if (this.reviewRatingFilter !== 'all') {
+      const num = Number(this.reviewRatingFilter);
+      result = result.filter(r => r.rating === num);
+    }
+    if (this.reviewSearchQuery && this.reviewSearchQuery.trim()) {
+      const q = this.reviewSearchQuery.toLowerCase();
+      result = result.filter(r => {
+        const prod = r.product?.title || '';
+        const user = r.user?.name || r.user?.email || '';
+        const text = r.text || '';
+        return prod.toLowerCase().includes(q) || user.toLowerCase().includes(q) || text.toLowerCase().includes(q);
+      });
+    }
+    this.filteredReviews = result;
+  }
+
+  // Mark review as helpful
+  markHelpful(reviewId: string) {
+    const reviewIdx = this.reviews.findIndex(r => r._id === reviewId);
+    if (reviewIdx === -1) return;
+    
+    // optimistic UI update
+    this.reviews[reviewIdx].helpfulCount = (this.reviews[reviewIdx].helpfulCount || 0) + 1;
+    this.applyReviewFilters();
+    
+    const token = localStorage.getItem('admin-token');
+    if (!token) {
+      this.errorMessage = 'Not authenticated';
+      this.clearMessages();
+      return;
+    }
+    
+    // sync with server (optional endpoint - may not exist yet)
+    fetch(`http://localhost:3000/api/reviews/${reviewId}/helpful`, {
+      method: 'PATCH',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    })
+    .catch(err => console.warn('Failed to update helpful count:', err));
+  }
+
+  // Admin: submit new review
+  submitNewReview() {
+    if (!this.newReview.productId || !this.newReview.text.trim()) {
+      this.errorMessage = 'Please select a product and enter review text';
+      this.clearMessages();
+      return;
+    }
+    const token = localStorage.getItem('admin-token');
+    if (!token) {
+      this.errorMessage = 'Not authenticated';
+      this.clearMessages();
+      return;
+    }
+    this.reviewService.create(this.newReview.productId, this.newReview.rating, this.newReview.text, token)
+      .subscribe({
+        next: (res) => {
+              // reload from server to avoid duplicates
+        this.loadReviews();
+        this.showAddReviewModal = false;
+        this.successMessage = 'Review added';
+        this.clearMessages();
+        },
+        error: (err) => {
+          console.error('Failed to add review', err);
+          this.errorMessage = 'Failed to add review';
+          this.clearMessages();
+        }
+      });
   }
 
   /** ---------------- Orders ---------------- **/
@@ -154,6 +297,14 @@ loadOrders() {
         this.orders = [];
       }
     });
+  }
+
+  // helper to show limited orders on dashboard
+  get displayedOrders() {
+    if (this.activeNav === 'dashboard') {
+      return this.orders ? this.orders.slice(0, 5) : [];
+    }
+    return this.orders;
   }
 
   // ✅ Calculate revenue from orders
@@ -468,6 +619,9 @@ changeOrderStatus(orderId: string, newStatus: string) {
       this.productImagePreview = product.image;
     }
 
+    // Clear any old messages immediately
+    this.successMessage = '';
+    this.errorMessage = '';
     this.showAddProductModal = true;
   }
 
@@ -480,28 +634,27 @@ changeOrderStatus(orderId: string, newStatus: string) {
       return;
     }
 
-    // Remove from UI immediately
-    this.products = this.products.filter(p => (p._id || p.id) !== productId);
-    this.filteredProducts = this.filteredProducts.filter(p => (p._id || p.id) !== productId);
-    this.successMessage = `${productName} deleted successfully!`;
-    this.clearMessages();
-
     if (this.useBackend) {
+      // WAIT for backend confirmation before removing from UI
       this.productService.delete(productId).subscribe({
         next: (res) => {
           console.log('Product deleted successfully:', res);
+          // Only remove from UI after backend confirms
+          this.products = this.products.filter(p => (p._id || p.id) !== productId);
+          this.filteredProducts = this.filteredProducts.filter(p => (p._id || p.id) !== productId);
+          this.successMessage = `${productName} deleted successfully!`;
         },
         error: (err) => {
           console.error('Failed to delete product:', err);
-          // Reload on error to restore data
-          this.loadProducts();
           this.errorMessage = 'Failed to delete product. Please try again.';
-          this.clearMessages();
         }
       });
     } else {
-      // Save to localStorage if not using backend
+      // For localStorage: delete from UI
+      this.products = this.products.filter(p => (p._id || p.id) !== productId);
+      this.filteredProducts = this.filteredProducts.filter(p => (p._id || p.id) !== productId);
       localStorage.setItem('admin-products', JSON.stringify(this.products));
+      this.successMessage = `${productName} deleted successfully!`;
     }
   }
 
@@ -543,40 +696,46 @@ changeOrderStatus(orderId: string, newStatus: string) {
 
   // ✅ SUBMIT PRODUCT (ADD OR EDIT)
   submitAddProduct() {
-    // Validation
-    if (!this.productForm.name.trim()) {
+    // Clear any previous messages
+    this.successMessage = '';
+    this.errorMessage = '';
+
+    // Validation with better error handling
+    if (!this.productForm || !this.productForm.name) {
       this.errorMessage = 'Product name is required';
-      this.clearMessages();
+      return;
+    }
+
+    const trimmedName = this.productForm.name.trim();
+    if (!trimmedName) {
+      this.errorMessage = 'Product name cannot be empty or contain only spaces';
       return;
     }
 
     if (!this.productForm.price || parseFloat(this.productForm.price) <= 0) {
-      this.errorMessage = 'Valid product price is required';
-      this.clearMessages();
+      this.errorMessage = 'Valid product price is required (must be greater than 0)';
       return;
     }
 
-    if (!this.productForm.category) {
+    if (!this.productForm.category || !this.productForm.category.trim()) {
       this.errorMessage = 'Product category is required';
-      this.clearMessages();
       return;
     }
 
     if (!this.productForm.stock || parseInt(this.productForm.stock) < 0) {
-      this.errorMessage = 'Valid stock quantity is required';
-      this.clearMessages();
+      this.errorMessage = 'Valid stock quantity is required (cannot be negative)';
       return;
     }
 
     if (this.useBackend) {
       const formData = new FormData();
-      formData.append('title', this.productForm.name);
-      formData.append('name', this.productForm.name);
+      formData.append('title', trimmedName);
+      formData.append('name', trimmedName);
       formData.append('price', this.productForm.price);
-      formData.append('category', this.productForm.category);
+      formData.append('category', this.productForm.category.trim());
       formData.append('stock', this.productForm.stock);
       formData.append('quantity', this.productForm.stock);
-      formData.append('description', this.productForm.description);
+      formData.append('description', this.productForm.description || '');
 
       if (this.productForm.variants.length > 0) {
         formData.append('variants', JSON.stringify(this.productForm.variants));
@@ -587,82 +746,33 @@ changeOrderStatus(orderId: string, newStatus: string) {
       }
 
       if (this.isEditing && this.editingProductId) {
-        // Update product - update UI immediately
-        const updatedProduct = {
-          _id: this.editingProductId,
-          title: this.productForm.name,
-          name: this.productForm.name,
-          price: parseFloat(this.productForm.price),
-          category: this.productForm.category,
-          stock: parseInt(this.productForm.stock),
-          quantity: parseInt(this.productForm.stock),
-          description: this.productForm.description,
-          image: this.productImagePreview
-        };
-        
-        const idx = this.products.findIndex(p => (p._id || p.id) === this.editingProductId);
-        if (idx !== -1) {
-          this.products[idx] = { ...this.products[idx], ...updatedProduct };
-          this.filteredProducts = [...this.products];
-        }
-        
-        this.successMessage = 'Product updated successfully!';
-        this.closeAddProductModal();
-        this.clearMessages();
-
+        // Update product - WAIT for backend before closing modal
         this.productService.update(this.editingProductId, formData).subscribe({
           next: (res) => {
             console.log('Product updated successfully:', res);
+            this.successMessage = 'Product updated successfully!';
+            this.closeAddProductModal();
+            this.loadProducts(); // Reload to ensure fresh data from backend
           },
           error: (err) => {
             console.error('Failed to update product:', err);
-            this.loadProducts(); // Reload on error
             this.errorMessage = 'Failed to update product. Please try again.';
-            this.clearMessages();
           }
         });
       } else {
-        // Add new product - update UI immediately
-        const newProduct = {
-          _id: Date.now().toString(),
-          title: this.productForm.name,
-          name: this.productForm.name,
-          price: parseFloat(this.productForm.price),
-          category: this.productForm.category,
-          stock: parseInt(this.productForm.stock),
-          quantity: parseInt(this.productForm.stock),
-          description: this.productForm.description,
-          image: this.productImagePreview
-        };
-        
-        this.products.unshift(newProduct);
-        this.filteredProducts = [...this.products];
-        this.successMessage = 'Product added successfully!';
-        this.closeAddProductModal();
-        this.clearMessages();
-
+        // Add new product - WAIT for backend to get real ID
         this.productService.create(formData).subscribe({
           next: (res: any) => {
             console.log('Product added successfully:', res);
-            const returned = res && res.product ? res.product : (res || null);
-            if (returned && returned._id) {
-              const idx = this.products.findIndex(p => p._id === newProduct._id);
-              if (idx !== -1) {
-                this.products[idx] = returned;
-                this.filteredProducts = [...this.products];
-              }
-            }
-            // clear editing flags
+            this.successMessage = 'Product added successfully!';
+            this.closeAddProductModal();
+            this.loadProducts(); // Reload to show real data from backend
             this.isEditing = false;
             this.editingProductId = null;
           },
           error: (err) => {
             console.error('Failed to add product:', err);
-            // Remove from UI on error
-            this.products = this.products.filter(p => p._id !== newProduct._id);
-            this.filteredProducts = [...this.products];
             this.errorMessage = 'Failed to add product. Please try again.';
-            this.clearMessages();
           }
         });
       }
@@ -670,13 +780,13 @@ changeOrderStatus(orderId: string, newStatus: string) {
       // Save to localStorage if not using backend
       const newProduct = {
         _id: this.isEditing ? this.editingProductId : Date.now().toString(),
-        title: this.productForm.name,
-        name: this.productForm.name,
+        title: trimmedName,
+        name: trimmedName,
         price: parseFloat(this.productForm.price),
-        category: this.productForm.category,
+        category: this.productForm.category.trim(),
         stock: parseInt(this.productForm.stock),
         quantity: parseInt(this.productForm.stock),
-        description: this.productForm.description,
+        description: this.productForm.description || '',
         image: this.productImagePreview,
         variants: this.productForm.variants
       };
@@ -704,6 +814,8 @@ changeOrderStatus(orderId: string, newStatus: string) {
     this.editingProductId = null;
     this.resetProductForm();
     this.productImagePreview = null;
+    this.successMessage = '';
+    this.errorMessage = '';
     this.showAddProductModal = true;
   }
 
@@ -713,6 +825,8 @@ changeOrderStatus(orderId: string, newStatus: string) {
     this.editingProductId = null;
     this.resetProductForm();
     this.productImagePreview = null;
+    this.successMessage = '';
+    this.errorMessage = '';
   }
 
   resetProductForm() {
@@ -732,6 +846,10 @@ changeOrderStatus(orderId: string, newStatus: string) {
       this.successMessage = '';
       this.errorMessage = '';
     }, 3000);
+  }
+
+  clearErrorMessage() {
+    this.errorMessage = '';
   }
 
   checkAdminToken() {
@@ -760,9 +878,6 @@ changeOrderStatus(orderId: string, newStatus: string) {
       case 'generate-report':
         this.openReportModal();
         break;
-      case 'send-email':
-        this.openEmailModal();
-        break;
       default:
         console.log('Unknown action:', action);
     }
@@ -771,12 +886,18 @@ changeOrderStatus(orderId: string, newStatus: string) {
   // ✅ USER MANAGEMENT
   openAddUserModal() {
     this.showAddUserModal = true;
-    this.clearMessages();
+    this.editingUserId = null;
+    this.resetUserForm();
+    this.successMessage = '';
+    this.errorMessage = '';
   }
 
   closeAddUserModal() {
     this.showAddUserModal = false;
     this.resetUserForm();
+    this.editingUserId = null;
+    this.successMessage = '';
+    this.errorMessage = '';
   }
 
   resetUserForm() {
@@ -790,27 +911,30 @@ changeOrderStatus(orderId: string, newStatus: string) {
 
   submitAddUser() {
     // Validation
-    if (!this.userForm.name.trim()) {
+    if (!this.userForm.name || !this.userForm.name.trim()) {
       this.errorMessage = 'User name is required';
-      this.clearMessages();
       return;
     }
 
-    if (!this.userForm.email.trim() || !this.validateEmail(this.userForm.email)) {
+    if (!this.userForm.email || !this.userForm.email.trim() || !this.validateEmail(this.userForm.email)) {
       this.errorMessage = 'Valid email is required';
-      this.clearMessages();
       return;
     }
 
     const token = localStorage.getItem('admin-token');
     if (!token) {
       this.errorMessage = 'No admin token found';
-      this.clearMessages();
       return;
     }
 
-    fetch('http://localhost:3000/api/admin/all-users', {
-      method: 'POST',
+    // Check if editing or creating
+    const method = this.editingUserId ? 'PUT' : 'POST';
+    const endpoint = this.editingUserId 
+      ? `http://localhost:3000/api/admin/all-users/${this.editingUserId}`
+      : 'http://localhost:3000/api/admin/all-users';
+
+    fetch(endpoint, {
+      method: method,
       headers: {
         'Authorization': 'Bearer ' + token,
         'Content-Type': 'application/json'
@@ -819,15 +943,13 @@ changeOrderStatus(orderId: string, newStatus: string) {
     })
     .then(res => res.json())
     .then(data => {
-      this.successMessage = 'User added successfully!';
+      this.successMessage = this.editingUserId ? 'User updated successfully!' : 'User added successfully!';
       this.closeAddUserModal();
       this.loadUsers();
-      this.clearMessages();
     })
     .catch(err => {
-      console.error('Failed to add user:', err);
-      this.errorMessage = 'Failed to add user';
-      this.clearMessages();
+      console.error('Failed to save user:', err);
+      this.errorMessage = this.editingUserId ? 'Failed to update user' : 'Failed to add user';
     });
   }
 
@@ -867,19 +989,46 @@ changeOrderStatus(orderId: string, newStatus: string) {
       return;
     }
 
-    // Simulate report generation
-    const reportName = `${this.reportForm.type}_report_${new Date().getTime()}.${this.reportForm.format}`;
-    console.log('Generating report:', {
-      type: this.reportForm.type,
-      startDate: this.reportForm.startDate,
-      endDate: this.reportForm.endDate,
-      format: this.reportFormat,
-      fileName: reportName
-    });
+    const token = localStorage.getItem('admin-token');
+    if (!token) {
+      this.errorMessage = 'No admin token found';
+      this.clearMessages();
+      return;
+    }
 
-    this.successMessage = `Report generated and downloaded as ${reportName}`;
-    this.closeReportModal();
-    this.clearMessages();
+    // Call backend to generate report
+    const reportUrl = `http://localhost:3000/api/admin/report?type=${this.reportForm.type}&startDate=${this.reportForm.startDate}&endDate=${this.reportForm.endDate}&format=${this.reportForm.format}`;
+    
+    fetch(reportUrl, {
+      headers: {
+        'Authorization': 'Bearer ' + token
+      }
+    })
+    .then(res => {
+      if (!res.ok) throw new Error('Failed to generate report');
+      return res.blob();
+    })
+    .then(blob => {
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const ext = this.reportForm.format === 'csv' ? 'csv' : (this.reportForm.format === 'excel' ? 'xlsx' : 'txt');
+      link.href = url;
+      link.download = `${this.reportForm.type}_report_${new Date().getTime()}.${ext}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      this.successMessage = `${this.reportForm.type} report generated and downloaded successfully!`;
+      this.closeReportModal();
+      this.clearMessages();
+    })
+    .catch(err => {
+      console.error('Report generation error:', err);
+      this.errorMessage = 'Failed to generate report';
+      this.clearMessages();
+    });
   }
 
   private get reportFormat(): string {
@@ -892,60 +1041,20 @@ changeOrderStatus(orderId: string, newStatus: string) {
     return formatMap[this.reportForm.format] || 'pdf';
   }
 
-  // ✅ EMAIL
-  openEmailModal() {
-    this.showEmailModal = true;
-    this.clearMessages();
-  }
-
-  closeEmailModal() {
-    this.showEmailModal = false;
-    this.resetEmailForm();
-  }
-
-  resetEmailForm() {
-    this.emailForm = {
-      recipient: '',
-      subject: '',
-      message: ''
-    };
-  }
-
-  submitSendEmail() {
-    // Validation
-    if (!this.emailForm.recipient.trim() || !this.validateEmail(this.emailForm.recipient)) {
-      this.errorMessage = 'Valid recipient email is required';
-      this.clearMessages();
-      return;
-    }
-
-    if (!this.emailForm.subject.trim()) {
-      this.errorMessage = 'Email subject is required';
-      this.clearMessages();
-      return;
-    }
-
-    if (!this.emailForm.message.trim()) {
-      this.errorMessage = 'Email message is required';
-      this.clearMessages();
-      return;
-    }
-
-    // Simulate email sending
-    console.log('Sending email:', this.emailForm);
-    this.successMessage = `Email sent successfully to ${this.emailForm.recipient}!`;
-    this.closeEmailModal();
-    this.clearMessages();
-  }
-
   // ✅ USER MANAGEMENT
   editUser(user: any) {
+    // prepare modal for editing an existing user
+    this.editingUserId = user._id;
     this.userForm = {
       name: user.name || '',
       email: user.email || '',
       role: user.role || 'user',
       status: user.status || 'active'
     };
+    // clear any previous messages immediately (avoid 3s timeout delay)
+    this.successMessage = '';
+    this.errorMessage = '';
+
     this.showAddUserModal = true;
   }
 
@@ -968,7 +1077,10 @@ changeOrderStatus(orderId: string, newStatus: string) {
         'Content-Type': 'application/json'
       }
     })
-    .then(res => res.json())
+    .then(res => {
+      if (!res.ok) throw new Error('Failed to delete user');
+      return res.json();
+    })
     .then(data => {
       this.successMessage = 'User deleted successfully!';
       this.loadUsers();

@@ -45,3 +45,96 @@
 .qty-btn{background:#f3f4f6;border:0;width:28px;height:28px;border-radius:2px;cursor:pointer;font-weight:700;color:#374151;transition:all .15s}
 .qty-btn:hover{background:#667eea;color:#fff}
 .qty-input{width:50px;border:0;text-align:center;font-weight:600;padding:2px;background:transparent}
+
+/* Reviews Section Styles */
+.reviews-section{background:#fff;padding:30px;border-radius:12px;margin-bottom:40px;box-shadow:0 5px 15px rgba(0,0,0,0.08)}
+.reviews-section h2{color:#333;font-size:24px;margin-bottom:25px;font-weight:700}
+.reviews-container{display:grid;gap:15px;margin-top:20px}
+.review-card{background:#f8f9fa;padding:20px;border-radius:8px;border-left:4px solid #667eea;transition:all 0.3s ease}
+.review-card:hover{box-shadow:0 5px 15px rgba(102,126,234,0.15);transform:translateX(4px)}
+.review-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.review-rating{display:flex;align-items:center;gap:8px}
+.stars{color:#ffc107;font-size:14px}
+.rating-text{color:#666;font-size:12px;font-weight:600}
+.review-date{color:#999;font-size:12px}
+.review-product{color:#667eea;font-size:13px;font-weight:600;margin-bottom:8px}
+.review-text{color:#555;font-size:14px;line-height:1.5}
+
+/* Modal Styles */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:200;animation:fadeIn 0.2s ease}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal{background:#fff;border-radius:12px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,0.2);animation:slideDown 0.3s ease}
+@keyframes slideDown{from{transform:translateY(-30px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-header{padding:20px;border-bottom:1px solid #e0e0e0;display:flex;justify-content:space-between;align-items:center;background:#f8f9fa}
+.modal-header h2{color:#333;font-size:20px;font-weight:700;margin:0}
+.modal-body{padding:25px;display:flex;flex-direction:column;gap:20px}
+.form-group{display:flex;flex-direction:column;gap:8px}
+.form-group label{color:#333;font-weight:600;font-size:14px}
+.form-group select,.form-group textarea{padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;font-family:inherit;background:#fff}
+.form-group select:focus,.form-group textarea:focus{outline:0;border-color:#667eea;box-shadow:0 0 0 3px rgba(102,126,234,0.1)}
+.form-group textarea{resize:vertical;min-height:100px}
+.modal-footer{display:flex;gap:10px;padding:20px;border-top:1px solid #e0e0e0;background:#f8f9fa}
+.btn-cancel{flex:1;background:#e0e0e0;color:#333;border:0;padding:12px;border-radius:6px;cursor:pointer;font-weight:600;transition:all 0.2s}
+.btn-cancel:hover{background:#d0d0d0}
+.btn-submit{flex:1;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border:0;padding:12px;border-radius:6px;cursor:pointer;font-weight:600;transition:all 0.2s}
+.btn-submit:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 15px rgba(102,126,234,0.3)}
+.btn-submit:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+/* Bill System Styles */
+.btn-bill{background:linear-gradient(135deg,#10b981 0%,#059669 100%);color:#fff;border:0;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;transition:all 0.2s}
+.btn-bill:hover{transform:translateY(-2px);box-shadow:0 8px 15px rgba(16,185,129,0.3)}
+
+.bill-modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:300;animation:fadeIn 0.3s ease}@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+.bill-modal{background:#fff;border-radius:12px;width:90%;max-width:700px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3)}
+
+.bill-modal-header{padding:20px;border-bottom:2px solid #667eea;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border-radius:12px 12px 0 0}
+
+.bill-modal-header h2{font-size:22px;font-weight:700;margin:0}
+
+.bill-container{padding:40px}
+
+.bill-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:30px;padding-bottom:20px;border-bottom:2px solid #f0f0f0}
+
+.bill-logo h1{color:#667eea;font-size:24px;margin:0}
+
+.bill-info{text-align:right}
+
+.bill-info p{margin:5px 0;color:#666;font-size:14px}
+
+.bill-section{margin-bottom:30px}
+
+.bill-section h3{color:#333;font-size:16px;font-weight:700;margin-bottom:15px;border-bottom:2px solid #f0f0f0;padding-bottom:10px}
+
+.bill-items-table{width:100%;border-collapse:collapse;margin-bottom:20px}
+
+.bill-items-table th{background:#f8f9fa;padding:10px;text-align:left;font-weight:700;color:#333;border-bottom:2px solid #e0e0e0;font-size:13px}
+
+.bill-items-table td{padding:12px 10px;border-bottom:1px solid #e0e0e0;color:#666;font-size:14px}
+
+.bill-items-table tr:hover{background:#f8f9fa}
+
+.bill-calculations{margin:30px 0;padding:20px;background:#f8f9fa;border-radius:8px}
+
+.calc-row{display:flex;justify-content:space-between;padding:8px 0;color:#666;font-size:14px}
+
+.calc-row .amount{font-weight:600;color:#333}
+
+.calc-row.total{border-top:2px solid #e0e0e0;padding-top:12px;margin-top:12px;font-size:18px;color:#667eea;font-weight:700}
+
+.bill-terms{text-align:center;margin:30px 0;padding:20px;background:#f0f8ff;border-radius:8px;border-left:4px solid #667eea}
+
+.bill-terms p{margin:8px 0;color:#666;font-size:14px}
+
+.bill-terms .text-center{text-align:center}
+
+.bill-terms .small{font-size:12px;color:#999}
+
+.bill-modal-footer{padding:20px;border-top:1px solid #e0e0e0;display:flex;gap:10px;background:#f8f9fa;border-radius:0 0 12px 12px}
+
+.btn-action{flex:1;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border:0;padding:12px;border-radius:6px;cursor:pointer;font-weight:600;transition:all 0.2s;font-size:14px}
+
+.btn-action:hover{transform:translateY(-2px);box-shadow:0 8px 15px rgba(102,126,234,0.3)}
+
+@media (max-width:768px){.bill-container{padding:20px}.bill-header{flex-direction:column;gap:15px}.bill-info{text-align:left}.bill-modal{width:95%;max-width:none}.bill-items-table{font-size:12px}}
+
+@media print{body{background:#fff}@page{size:A4;margin:0}.bill-modal-overlay{background:transparent}body *{display:none}.bill-modal,.bill-modal *{display:block!important}body .bill-modal{position:static;width:100%;max-width:100%;box-shadow:none;max-height:100%}.bill-modal-header,.bill-modal-footer{display:none}html,body{margin:0;padding:0}.bill-container{padding:20px;margin:0}}

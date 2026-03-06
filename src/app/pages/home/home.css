@@ -135,6 +135,39 @@ body {
 }
 
 /* HERO SECTION */
+
+/* Review modal styles */
+.modal-overlay {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+.modal {
+  background: white;
+  padding: 18px;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 520px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+}
+.modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px }
+.close-btn { background:none; border:none; cursor:pointer; font-size:16px }
+.modal-body label { display:block; font-weight:600; margin-top:8px }
+.modal-body select, .modal-body textarea { width:100%; padding:8px; margin-top:6px; border:1px solid #ddd; border-radius:6px }
+.modal-actions { display:flex; gap:8px; margin-top:10px }
+.status-message { margin-top:10px; color:#2a5298 }
+
+.review-btn { margin-left:8px; padding:8px 10px; border-radius:8px; background:#fff3cd; border:1px solid #ffd54f; cursor:pointer }
+.product-actions-row { display:flex; align-items:center; gap:8px }
+
+/* rest of CSS continues */
 .hero {
   min-height: 90vh;
   background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)),

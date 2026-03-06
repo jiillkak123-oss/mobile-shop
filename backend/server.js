@@ -3,6 +3,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -20,8 +21,38 @@ const path = require('path');
 const User = require('./models/user');
 const Product = require('./models/product');
 const Order = require('./models/order');
+const Review = require('./models/review');
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/mobile-shop';
+
+mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => {
+    console.log('Connected to MongoDB');
+    seedProductsIfNeeded();
+  })
+  .catch(err => {
+    console.error('MongoDB connection error:', err);
+  });
+
+// ================= EMAIL SETUP =================
+const emailTransporter = nodemailer.createTransport({
+  service: process.env.EMAIL_SERVICE || 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER || 'your-email@gmail.com',
+    pass: process.env.EMAIL_PASSWORD || 'your-app-password'
+  }
+});
+
+// Test email connection on startup
+// Commenting out email verification to skip Gmail authentication check
+// emailTransporter.verify((error, success) => {
+//   if (error) {
+//     console.warn('Email transporter error (reports/emails may not work):', error.message);
+//   } else {
+//     console.log('Email transporter ready');
+//   }
+// });
+
 
 mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => {
@@ -551,5 +582,330 @@ app.get('/api/orders/all', async (req, res) => {
   } catch (err) {
     console.error('Get all orders error:', err);
     res.status(500).json({ error: 'Server error', detail: err.message });
+  }
+});
+// ================= Reviews =================
+// Public: get recent reviews
+app.get('/api/reviews', async (req, res) => {
+  try {
+    const reviews = await Review.find()
+      .populate('user', 'name email')
+      .populate('product', 'title')
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json(reviews);
+  } catch (err) {
+    console.error('Get reviews error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Create review (authenticated users)
+app.post('/api/reviews', authenticateToken, async (req, res) => {
+  try {
+    const { productId, rating, text } = req.body;
+    if (!rating || rating < 1 || rating > 5) return res.status(400).json({ error: 'Rating must be 1-5' });
+
+    const review = new Review({
+      user: req.user.id,
+      product: productId || null,
+      rating: Number(rating),
+      text: text || ''
+    });
+    await review.save();
+    const populated = await Review.findById(review._id).populate('user', 'name email').populate('product', 'title').lean();
+    res.status(201).json(populated);
+  } catch (err) {
+    console.error('Create review error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Admin: get all reviews
+app.get('/api/admin/all-reviews', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const reviews = await Review.find()
+      .populate('user', 'name email')
+      .populate('product', 'title')
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json(reviews);
+  } catch (err) {
+    console.error('Get all reviews error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Admin: delete a review
+app.delete('/api/admin/reviews/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const review = await Review.findByIdAndDelete(req.params.id);
+    if (!review) return res.status(404).json({ error: 'Review not found' });
+    res.json({ message: 'Review deleted' });
+  } catch (err) {
+    console.error('Delete review error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ================= REPORTS =================
+// Admin: Generate Report
+app.get('/api/admin/report', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { type, startDate, endDate, format } = req.query;
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
+    let reportData = {};
+    const dateRange = `${start.toLocaleDateString()} to ${end.toLocaleDateString()}`;
+
+    if (type === 'sales') {
+      const orders = await Order.find({
+        createdAt: { $gte: start, $lte: end }
+      }).populate('user', 'name email').populate('items.product', 'title price').lean();
+
+      const totalSales = orders.reduce((sum, o) => sum + (o.totalPrice || 0), 0);
+      const totalOrders = orders.length;
+      const avgOrderValue = totalOrders > 0 ? (totalSales / totalOrders).toFixed(2) : 0;
+
+      reportData = {
+        title: 'Sales Report',
+        dateRange,
+        totalSales: totalSales.toFixed(2),
+        totalOrders,
+        avgOrderValue,
+        orders: orders.map(o => ({
+          id: o._id.toString().substring(0, 8),
+          customer: o.user?.name || o.user?.email || 'Guest',
+          items: o.items?.length || 0,
+          total: (o.totalPrice || 0).toFixed(2),
+          date: new Date(o.createdAt).toLocaleDateString()
+        }))
+      };
+    } else if (type === 'orders') {
+      const orders = await Order.find({
+        createdAt: { $gte: start, $lte: end }
+      }).populate('user', 'name email').populate('items.product', 'title').lean();
+
+      const statusSummary = {};
+      orders.forEach(o => {
+        const status = o.status || 'pending';
+        statusSummary[status] = (statusSummary[status] || 0) + 1;
+      });
+
+      reportData = {
+        title: 'Orders Report',
+        dateRange,
+        totalOrders: orders.length,
+        statusSummary,
+        orders: orders.map(o => ({
+          id: o._id.toString().substring(0, 8),
+          customer: o.user?.name || o.user?.email || 'Guest',
+          items: o.items?.map(i => i.product?.title || 'Unknown').join(', ') || 'N/A',
+          status: o.status || 'pending',
+          date: new Date(o.createdAt).toLocaleDateString()
+        }))
+      };
+    } else if (type === 'revenue') {
+      const orders = await Order.find({
+        createdAt: { $gte: start, $lte: end }
+      }).lean();
+
+      const totalRevenue = orders.reduce((sum, o) => sum + (o.totalPrice || 0), 0);
+      const byDay = {};
+      orders.forEach(o => {
+        const day = new Date(o.createdAt).toLocaleDateString();
+        byDay[day] = (byDay[day] || 0) + (o.totalPrice || 0);
+      });
+
+      reportData = {
+        title: 'Revenue Report',
+        dateRange,
+        totalRevenue: totalRevenue.toFixed(2),
+        revenueByDay: Object.entries(byDay).map(([day, amount]) => ({
+          day,
+          revenue: amount.toFixed(2)
+        }))
+      };
+    } else if (type === 'products') {
+      const orders = await Order.find({
+        createdAt: { $gte: start, $lte: end }
+      }).populate('items.product').lean();
+
+      const productSales = {};
+      orders.forEach(o => {
+        o.items?.forEach(item => {
+          const title = item.product?.title || 'Unknown';
+          productSales[title] = (productSales[title] || 0) + (item.quantity || 1);
+        });
+      });
+
+      reportData = {
+        title: 'Products Report',
+        dateRange,
+        topProducts: Object.entries(productSales)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 20)
+          .map(([name, quantity]) => ({ name, quantity }))
+      };
+    } else if (type === 'users') {
+      const orders = await Order.find({
+        createdAt: { $gte: start, $lte: end },
+        user: { $ne: null }
+      }).populate('user', 'name email').lean();
+
+      const uniqueUsers = new Set(orders.map(o => o.user?._id?.toString()));
+
+      reportData = {
+        title: 'Users Report',
+        dateRange,
+        newOrderingUsers: uniqueUsers.size,
+        totalOrders: orders.length,
+        users: [...new Map(orders.map(o => [o.user?._id?.toString(), o.user])).values()]
+          .map(u => ({
+            name: u?.name || 'Unknown',
+            email: u?.email || 'N/A'
+          }))
+      };
+    }
+
+    // Format report based on requested format
+    if (format === 'csv') {
+      const csv = generateCSV(reportData);
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="${type}_report_${Date.now()}.csv"`);
+      res.send(csv);
+    } else if (format === 'json') {
+      res.json(reportData);
+    } else {
+      // Default: Send as text for PDF/Excel handling on frontend
+      const text = generateTextReport(reportData);
+      res.setHeader('Content-Type', 'text/plain');
+      res.setHeader('Content-Disposition', `attachment; filename="${type}_report_${Date.now()}.txt"`);
+      res.send(text);
+    }
+  } catch (err) {
+    console.error('Report generation error:', err);
+    res.status(500).json({ error: 'Failed to generate report', detail: err.message });
+  }
+});
+
+// Helper: Generate CSV
+function generateCSV(data) {
+  let csv = `${data.title}\nReport Date: ${new Date().toLocaleString()}\nPeriod: ${data.dateRange}\n\n`;
+  
+  if (data.orders) {
+    csv += 'ID,Customer,Items,Total,Date\n';
+    data.orders.forEach(o => {
+      csv += `"${o.id}","${o.customer}","${o.items || 0}","${o.total || o.revenue || 0}","${o.date || o.day}"\n`;
+    });
+  } else if (data.revenueByDay) {
+    csv += 'Day,Revenue\n';
+    data.revenueByDay.forEach(r => {
+      csv += `"${r.day}","${r.revenue}"\n`;
+    });
+  } else if (data.topProducts) {
+    csv += 'Product,Quantity Sold\n';
+    data.topProducts.forEach(p => {
+      csv += `"${p.name}","${p.quantity}"\n`;
+    });
+  } else if (data.users) {
+    csv += 'Name,Email\n';
+    data.users.forEach(u => {
+      csv += `"${u.name}","${u.email}"\n`;
+    });
+  }
+  
+  return csv;
+}
+
+// Helper: Generate Text Report
+function generateTextReport(data) {
+  let text = `${'='.repeat(60)}\n`;
+  text += `${data.title.toUpperCase()}\n`;
+  text += `${'='.repeat(60)}\n`;
+  text += `Generated: ${new Date().toLocaleString()}\n`;
+  text += `Period: ${data.dateRange}\n\n`;
+
+  if (data.totalSales !== undefined) {
+    text += `Total Sales: $${data.totalSales}\n`;
+    text += `Total Orders: ${data.totalOrders}\n`;
+    text += `Average Order Value: $${data.avgOrderValue}\n\n`;
+    text += `${'─'.repeat(60)}\nORDERS:\n${'─'.repeat(60)}\n`;
+    data.orders?.forEach(o => {
+      text += `Order ${o.id} | ${o.customer} | ${o.items} items | $${o.total} | ${o.date}\n`;
+    });
+  } else if (data.statusSummary) {
+    text += `Total Orders: ${data.totalOrders}\n`;
+    text += `Status Summary:\n`;
+    Object.entries(data.statusSummary).forEach(([status, count]) => {
+      text += `  ${status}: ${count}\n`;
+    });
+    text += `\n${'─'.repeat(60)}\nORDERS:\n${'─'.repeat(60)}\n`;
+    data.orders?.forEach(o => {
+      text += `Order ${o.id} | ${o.customer} | ${o.items} | Status: ${o.status} | ${o.date}\n`;
+    });
+  } else if (data.totalRevenue !== undefined) {
+    text += `Total Revenue: $${data.totalRevenue}\n\n`;
+    text += `Revenue by Day:\n`;
+    text += `${'─'.repeat(60)}\n`;
+    data.revenueByDay?.forEach(r => {
+      text += `${r.day}: $${r.revenue}\n`;
+    });
+  } else if (data.topProducts) {
+    text += `Top Products Sold:\n`;
+    text += `${'─'.repeat(60)}\n`;
+    data.topProducts?.forEach(p => {
+      text += `${p.name}: ${p.quantity} units\n`;
+    });
+  } else if (data.users) {
+    text += `New Ordering Users: ${data.newOrderingUsers}\n`;
+    text += `Total Orders: ${data.totalOrders}\n\n`;
+    text += `Users:\n`;
+    text += `${'─'.repeat(60)}\n`;
+    data.users?.forEach(u => {
+      text += `${u.name} (${u.email})\n`;
+    });
+  }
+
+  text += `\n${'='.repeat(60)}\n`;
+  return text;
+}
+
+// Admin: Send Email
+app.post('/api/admin/send-email', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { recipient, subject, message } = req.body;
+
+    if (!recipient || !subject || !message) {
+      return res.status(400).json({ error: 'Recipient, subject, and message are required' });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(recipient)) {
+      return res.status(400).json({ error: 'Invalid email address' });
+    }
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER || 'noreply@mobileshop.com',
+      to: recipient,
+      subject: subject,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #667eea;">${subject}</h2>
+          <p>${message.replace(/\n/g, '<br>')}</p>
+          <hr style="margin: 20px 0; border: none; border-top: 1px solid #ddd;">
+          <p style="color: #999; font-size: 12px;">This is an automated message from Mobile Shop Admin.</p>
+        </div>
+      `
+    };
+
+    await emailTransporter.sendMail(mailOptions);
+    res.json({ message: 'Email sent successfully', recipient });
+  } catch (err) {
+    console.error('Send email error:', err);
+    res.status(500).json({ error: 'Failed to send email', detail: err.message });
   }
 });
