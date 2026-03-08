@@ -39,6 +39,8 @@ export class AdminDashboardComponent implements OnInit {
   showAddProductModal: boolean = false;
   showAddUserModal: boolean = false;
   showReportModal: boolean = false;
+  showDeleteConfirmModal: boolean = false;
+  userToDelete: any = null;
 
   // Product form
   productForm = {
@@ -54,6 +56,12 @@ export class AdminDashboardComponent implements OnInit {
 
   // Orders & Users
   orders: any[] = [];
+  filteredOrders: any[] = [];
+  ordersSearchQuery: string = '';
+  ordersFilterStatus: string = 'all';
+  ordersSortBy: 'date' | 'amount' = 'date';
+  ordersSortOrder: 'asc' | 'desc' = 'desc';
+  
   // Reviews
   reviews: any[] = [];
   filteredReviews: any[] = [];
@@ -65,6 +73,10 @@ export class AdminDashboardComponent implements OnInit {
   newReview = { productId: null as string | null, rating: 5, text: '' };
   selectedOrder: Order | null = null;
   users: any[] = [];
+  paginatedUsers: any[] = [];
+  currentUserPage: number = 1;
+  usersPerPage: number = 10;
+  totalUsers: number = 0;
 
   // User form
   userForm = {
@@ -73,6 +85,9 @@ export class AdminDashboardComponent implements OnInit {
     role: 'user',
     status: 'active'
   };
+
+  // track submission/loading state for add/edit user
+  isSubmittingUser: boolean = false;
 
   // Report form
   reportForm = {
@@ -121,6 +136,20 @@ export class AdminDashboardComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    // try to read stored admin name
+    const storedName = localStorage.getItem('admin-name');
+    if (storedName) {
+      this.adminName = storedName;
+    } else {
+      const storedUser = localStorage.getItem('admin-user');
+      if (storedUser) {
+        try {
+          const u = JSON.parse(storedUser);
+          if (u.name) this.adminName = u.name;
+        } catch {}
+      }
+    }
+
     this.loadOrdersForRevenue();
     this.loadOrders();
     this.loadReviews();
@@ -194,6 +223,14 @@ export class AdminDashboardComponent implements OnInit {
 
   applyReviewFilters() {
     let result = [...this.reviews];
+    
+    // Remove guest reviews (reviews without user information)
+    result = result.filter(r => {
+      const hasUserInfo = (r.user?.name && r.user.name.trim()) || 
+                          (r.user?.email && r.user.email.trim());
+      return hasUserInfo;
+    });
+    
     if (this.reviewRatingFilter !== 'all') {
       const num = Number(this.reviewRatingFilter);
       result = result.filter(r => r.rating === num);
@@ -276,6 +313,7 @@ loadOrders() {
       } else {
         this.orders = [];
       }
+      this.applyOrderFilters();
     },
     error: (err) => {
       console.error('Failed to load orders', err);
@@ -302,9 +340,63 @@ loadOrders() {
   // helper to show limited orders on dashboard
   get displayedOrders() {
     if (this.activeNav === 'dashboard') {
-      return this.orders ? this.orders.slice(0, 5) : [];
+      return this.filteredOrders ? this.filteredOrders.slice(0, 5) : [];
     }
-    return this.orders;
+    return this.filteredOrders;
+  }
+
+  // ✅ Apply filters and sorting to orders
+  applyOrderFilters(): void {
+    let result = [...this.orders];
+
+    // Remove guest orders (orders without user information)
+    result = result.filter(order => {
+      const hasUserInfo = (order.user?.name && order.user.name.trim()) || 
+                          (order.user?.email && order.user.email.trim());
+      return hasUserInfo;
+    });
+
+    // Filter by status
+    if (this.ordersFilterStatus !== 'all') {
+      result = result.filter(order => 
+        (order.status || '').toLowerCase() === this.ordersFilterStatus.toLowerCase()
+      );
+    }
+
+    // Search by order ID, customer, email, or product
+    if (this.ordersSearchQuery && this.ordersSearchQuery.trim()) {
+      const q = this.ordersSearchQuery.toLowerCase();
+      result = result.filter(order => {
+        const orderId = (order._id || '').toLowerCase();
+        const customerName = (order.user?.name || '').toLowerCase();
+        const customerEmail = (order.user?.email || '').toLowerCase();
+        const productNames = order.items?.map((item: any) => 
+          (item.product?.title || item.product?.name || '').toLowerCase()
+        ).join(' ') || '';
+        
+        return orderId.includes(q) || 
+               customerName.includes(q) || 
+               customerEmail.includes(q) || 
+               productNames.includes(q);
+      });
+    }
+
+    // Sort by date or amount
+    if (this.ordersSortBy === 'date') {
+      result.sort((a, b) => {
+        const dateA = new Date(a.createdAt).getTime();
+        const dateB = new Date(b.createdAt).getTime();
+        return this.ordersSortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+      });
+    } else if (this.ordersSortBy === 'amount') {
+      result.sort((a, b) => {
+        const amountA = a.totalPrice || 0;
+        const amountB = b.totalPrice || 0;
+        return this.ordersSortOrder === 'desc' ? amountB - amountA : amountA - amountB;
+      });
+    }
+
+    this.filteredOrders = result;
   }
 
   // ✅ Calculate revenue from orders
@@ -460,9 +552,28 @@ loadOrders() {
     }).format(value);
   }
 
-  viewOrder(order: Order) {
-    this.selectedOrder = order;
-    alert(`Order ID: ${order._id}`);
+  viewOrderDetails(order: any) {
+    const customerName = order.user?.name || order.user?.email || 'Guest';
+    const items = order.items?.map((item: any) => 
+      `${item.product?.title || item.product?.name || 'Product'} (Qty: ${item.quantity})`
+    ).join('\n') || 'No items';
+
+    const details = `
+📦 Order Details
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Order ID: #${order._id?.slice(-6)}
+Customer: ${customerName}
+Status: ${order.status || 'Pending'}
+Total: ₹${order.totalPrice?.toFixed(2) || '0.00'}
+Date: ${new Date(order.createdAt).toLocaleString()}
+
+🛒 Items:
+${items}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    `.trim();
+
+    alert(details);
   }
 
 // AdminDashboardComponent
@@ -471,7 +582,10 @@ markAsCompleted(orderId: string) {
     next: (res) => {
       console.log('Order marked Completed:', res);
       const idx = this.orders.findIndex(o => o._id === orderId);
-      if (idx !== -1) this.orders[idx].status = 'Completed';
+      if (idx !== -1) {
+        this.orders[idx].status = 'Completed';
+        this.calculateRevenue();
+      }
     },
     error: (err) => {
       console.error('Failed to update order status', err);
@@ -486,7 +600,8 @@ navigateToSection(section: NavSection) {
 }
 
   // admin-dashboard.component.ts
-changeOrderStatus(orderId: string, newStatus: string) {
+changeOrderStatus(orderId: string, event: Event) {
+  const newStatus = (event.target as HTMLSelectElement).value;
   // Update UI immediately
   const orderIdx = this.orders.findIndex(o => o._id === orderId);
   if (orderIdx !== -1) {
@@ -500,6 +615,8 @@ changeOrderStatus(orderId: string, newStatus: string) {
   this.orderService.updateStatus(orderId, newStatus).subscribe({
     next: () => {
       console.log('Order status updated');
+      // recalculate revenue since status change may affect completedOrders
+      this.calculateRevenue();
     },
     error: (err) => {
       console.error('Error updating status:', err);
@@ -551,6 +668,8 @@ changeOrderStatus(orderId: string, newStatus: string) {
     
     if (!token) {
       console.error('No admin token found');
+      this.errorMessage = 'Not authenticated';
+      this.clearMessages();
       return;
     }
 
@@ -569,11 +688,18 @@ changeOrderStatus(orderId: string, newStatus: string) {
       } else {
         this.users = [];
       }
-      console.log('Users loaded:', this.users);
+      this.totalUsers = this.users.length;
+      this.currentUserPage = 1;
+      this.updatePaginatedUsers();
+      this.successMessage = 'Users loaded';
+      this.clearMessages();
     })
     .catch(err => {
       console.error('Failed to load users:', err);
+      this.errorMessage = 'Failed to load users';
       this.users = [];
+      this.totalUsers = 0;
+      this.clearMessages();
     });
   }
 
@@ -848,13 +974,28 @@ changeOrderStatus(orderId: string, newStatus: string) {
     }, 3000);
   }
 
+  clearMessagesAfter(milliseconds: number) {
+    setTimeout(() => {
+      this.successMessage = '';
+      this.errorMessage = '';
+    }, milliseconds);
+  }
+
   clearErrorMessage() {
     this.errorMessage = '';
   }
 
   checkAdminToken() {
     const token = localStorage.getItem('admin-token');
-    if (!token) this.router.navigate(['/admin/login']);
+    if (!token) {
+      this.router.navigate(['/admin/login']);
+      return;
+    }
+    // also refresh admin name if token still present
+    const name = localStorage.getItem('admin-name');
+    if (name) {
+      this.adminName = name;
+    }
   }
 
   // ✅ AUTH
@@ -862,6 +1003,7 @@ changeOrderStatus(orderId: string, newStatus: string) {
     if (confirm('Are you sure you want to logout?')) {
       localStorage.removeItem('admin-token');
       localStorage.removeItem('admin-user');
+      localStorage.removeItem('admin-name');
       this.router.navigate(['/admin/login']);
     }
   }
@@ -871,9 +1013,6 @@ changeOrderStatus(orderId: string, newStatus: string) {
     switch (action) {
       case 'add-product':
         this.openAddProductModal();
-        break;
-      case 'add-user':
-        this.openAddUserModal();
         break;
       case 'generate-report':
         this.openReportModal();
@@ -896,6 +1035,7 @@ changeOrderStatus(orderId: string, newStatus: string) {
     this.showAddUserModal = false;
     this.resetUserForm();
     this.editingUserId = null;
+    this.isSubmittingUser = false;
     this.successMessage = '';
     this.errorMessage = '';
   }
@@ -910,28 +1050,43 @@ changeOrderStatus(orderId: string, newStatus: string) {
   }
 
   submitAddUser() {
-    // Validation
+    // prevent double submission
+    if (this.isSubmittingUser) return;
+
+    // basic validation
     if (!this.userForm.name || !this.userForm.name.trim()) {
-      this.errorMessage = 'User name is required';
+      this.errorMessage = '❌ User name is required';
+      this.clearMessagesAfter(4000);
       return;
     }
 
     if (!this.userForm.email || !this.userForm.email.trim() || !this.validateEmail(this.userForm.email)) {
-      this.errorMessage = 'Valid email is required';
+      this.errorMessage = '❌ Please enter a valid email address';
+      this.clearMessagesAfter(4000);
       return;
     }
 
     const token = localStorage.getItem('admin-token');
     if (!token) {
-      this.errorMessage = 'No admin token found';
+      this.errorMessage = '❌ Admin authentication required';
+      this.clearMessagesAfter(4000);
       return;
     }
 
-    // Check if editing or creating
+    const isEditing = !!this.editingUserId;
+    
+    // For edit operations, skip loading state for instant updates
+    if (!isEditing) {
+      this.isSubmittingUser = true;
+    }
+    
+    this.successMessage = `⏳ ${isEditing ? 'Updating user...' : 'Creating user...'}`;
+    this.errorMessage = ''; // clear previous errors
+
     const method = this.editingUserId ? 'PUT' : 'POST';
-    const endpoint = this.editingUserId 
+    const endpoint = this.editingUserId
       ? `http://localhost:3000/api/admin/all-users/${this.editingUserId}`
-      : 'http://localhost:3000/api/admin/all-users';
+      : `http://localhost:3000/api/admin/all-users`;
 
     fetch(endpoint, {
       method: method,
@@ -941,15 +1096,63 @@ changeOrderStatus(orderId: string, newStatus: string) {
       },
       body: JSON.stringify(this.userForm)
     })
-    .then(res => res.json())
+    .then(res => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    })
     .then(data => {
-      this.successMessage = this.editingUserId ? 'User updated successfully!' : 'User added successfully!';
-      this.closeAddUserModal();
-      this.loadUsers();
+      const userName = this.userForm.name;
+      const isEditing = !!this.editingUserId;
+      
+      if (isEditing) {
+        // EDIT MODE: Update user in local array immediately for instant UI update
+        const userIndex = this.users.findIndex(u => u._id === this.editingUserId);
+        if (userIndex !== -1) {
+          this.users[userIndex] = { ...this.users[userIndex], ...this.userForm };
+          // Update paginated users if needed
+          this.updatePaginatedUsers();
+        }
+        
+        // Show success message clearly in modal - NO LOADING
+        this.successMessage = `✅ User "${userName}" updated successfully!`;
+        this.errorMessage = '';
+        
+        // Close modal after 2 seconds so user sees the message
+        setTimeout(() => {
+          this.closeAddUserModal();
+          // Keep message visible in global toast for 3 more seconds
+          this.clearMessagesAfter(3000);
+        }, 2000);
+      } else {
+        // CREATE MODE: Close modal immediately and reload
+        this.isSubmittingUser = false;
+        this.closeAddUserModal();
+        this.successMessage = `✅ User "${userName}" created successfully!`;
+        this.errorMessage = '';
+        this.loadUsers(); // Reload list only for new users
+        this.clearMessagesAfter(5000);
+      }
     })
     .catch(err => {
       console.error('Failed to save user:', err);
-      this.errorMessage = this.editingUserId ? 'Failed to update user' : 'Failed to add user';
+      const isEditing = !!this.editingUserId;
+      const action = isEditing ? 'update' : 'create';
+      this.errorMessage = `❌ Failed to ${action} user. Please try again.`;
+      this.successMessage = '';
+      
+      // Only reset loading state for create operations
+      if (!isEditing) {
+        this.isSubmittingUser = false;
+      }
+      
+      // Show error message for 4 seconds
+      this.clearMessagesAfter(4000);
+    })
+    .finally(() => {
+      // Only reset loading state for create operations
+      if (!this.editingUserId) {
+        this.isSubmittingUser = false;
+      }
     });
   }
 
@@ -1043,7 +1246,7 @@ changeOrderStatus(orderId: string, newStatus: string) {
 
   // ✅ USER MANAGEMENT
   editUser(user: any) {
-    // prepare modal for editing an existing user
+    // Open modal instantly - no delays
     this.editingUserId = user._id;
     this.userForm = {
       name: user.name || '',
@@ -1051,23 +1254,39 @@ changeOrderStatus(orderId: string, newStatus: string) {
       role: user.role || 'user',
       status: user.status || 'active'
     };
-    // clear any previous messages immediately (avoid 3s timeout delay)
+    this.showAddUserModal = true;
     this.successMessage = '';
     this.errorMessage = '';
-
-    this.showAddUserModal = true;
   }
 
-  deleteUser(userId: string) {
-    if (!confirm('Are you sure you want to delete this user?')) {
+  deleteUser(user: any) {
+    // Open professional delete confirmation modal
+    this.userToDelete = user;
+    this.showDeleteConfirmModal = true;
+    this.successMessage = '';
+    this.errorMessage = '';
+  }
+
+  performDeleteUser(userId: string) {
+    const token = localStorage.getItem('admin-token');
+    if (!token) {
+      this.errorMessage = '❌ No admin token found';
+      this.clearMessagesAfter(4000);
+      this.showDeleteConfirmModal = false;
       return;
     }
 
-    const token = localStorage.getItem('admin-token');
-    if (!token) {
-      this.errorMessage = 'No admin token found';
-      this.clearMessages();
-      return;
+    // Close modal immediately and show processing message
+    this.showDeleteConfirmModal = false;
+    this.successMessage = '⏳ Deleting user...';
+    this.errorMessage = '';
+
+    // Optimistically remove user from UI immediately
+    const userIndex = this.users.findIndex(u => u._id === userId);
+    let removedUser = null;
+    if (userIndex !== -1) {
+      removedUser = this.users.splice(userIndex, 1)[0];
+      this.updatePaginatedUsers();
     }
 
     fetch(`http://localhost:3000/api/admin/all-users/${userId}`, {
@@ -1082,20 +1301,136 @@ changeOrderStatus(orderId: string, newStatus: string) {
       return res.json();
     })
     .then(data => {
-      this.successMessage = 'User deleted successfully!';
-      this.loadUsers();
-      this.clearMessages();
+      this.successMessage = '✅ User deleted successfully!';
+      this.errorMessage = '';
+      // Clear message after 5 seconds
+      this.clearMessagesAfter(5000);
     })
     .catch(err => {
       console.error('Failed to delete user:', err);
-      this.errorMessage = 'Failed to delete user';
-      this.clearMessages();
+      // Restore user to list if deletion failed
+      if (removedUser) {
+        this.users.splice(userIndex, 0, removedUser);
+        this.updatePaginatedUsers();
+      }
+      this.errorMessage = '❌ Failed to delete user';
+      this.successMessage = '';
+      // Clear error after 5 seconds
+      this.clearMessagesAfter(5000);
     });
+  }
+
+  confirmDeleteUser() {
+    if (!this.userToDelete) return;
+    this.performDeleteUser(this.userToDelete._id);
+  }
+
+  closeDeleteConfirmModal() {
+    this.showDeleteConfirmModal = false;
+    this.userToDelete = null;
   }
 
   // ✅ HELPER METHODS
   validateEmail(email: string): boolean {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
+  }
+
+  // ✅ PAGINATION HELPERS
+  updatePaginatedUsers() {
+    const startIdx = (this.currentUserPage - 1) * this.usersPerPage;
+    const endIdx = startIdx + this.usersPerPage;
+    this.paginatedUsers = this.users.slice(startIdx, endIdx);
+  }
+
+  getTotalUserPages(): number {
+    return Math.ceil(this.totalUsers / this.usersPerPage);
+  }
+
+  goToUserPage(page: number) {
+    const totalPages = this.getTotalUserPages();
+    if (page < 1 || page > totalPages) return;
+    this.currentUserPage = page;
+    this.updatePaginatedUsers();
+  }
+
+  nextUserPage() {
+    if (this.currentUserPage < this.getTotalUserPages()) {
+      this.currentUserPage++;
+      this.updatePaginatedUsers();
+    }
+  }
+
+  prevUserPage() {
+    if (this.currentUserPage > 1) {
+      this.currentUserPage--;
+      this.updatePaginatedUsers();
+    }
+  }
+
+  getVisiblePageNumbers(): number[] {
+    const total = this.getTotalUserPages();
+    const current = this.currentUserPage;
+    const pages = [];
+
+    // Show up to 5 page buttons
+    const startPage = Math.max(1, current - 2);
+    const endPage = Math.min(total, startPage + 4);
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+
+    return pages;
+  }
+
+  /**
+   * Change a user's status (active / inactive / blocked) with optimistic UI update.
+   */
+  changeUserStatus(userId: string, newStatus: string) {
+    // confirm when blocking or making inactive
+    if ((newStatus === 'blocked' || newStatus === 'inactive') && !confirm(`Are you sure you want to set user status to "${newStatus}"?`)) {
+      return;
+    }
+
+    const idx = this.users.findIndex(u => u._id === userId);
+    if (idx !== -1) {
+      this.users[idx].status = newStatus;
+      this.users = [...this.users]; // trigger change detection
+    }
+
+    let msg = '';
+    if (newStatus === 'inactive') msg = 'User set to inactive';
+    else if (newStatus === 'blocked') msg = 'User blocked';
+    else if (newStatus === 'active') msg = 'User activated';
+    this.successMessage = msg;
+    this.clearMessages();
+
+    const token = localStorage.getItem('admin-token');
+    if (!token) {
+      this.errorMessage = 'Not authenticated';
+      this.clearMessages();
+      return;
+    }
+
+    fetch(`http://localhost:3000/api/admin/all-users/${userId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ status: newStatus })
+    })
+    .then(res => {
+      if (!res.ok) throw new Error('Failed to update status');
+      return res.json();
+    })
+    .catch(err => {
+      console.error('Failed to change user status:', err);
+      this.errorMessage = 'Failed to change user status';
+      this.clearMessages();
+      // reload users to sync
+      this.loadUsers();
+    });
   }
 }

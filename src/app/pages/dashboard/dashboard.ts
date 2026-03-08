@@ -99,6 +99,11 @@ export class Dashboard implements OnInit {
           if (meRes.ok) {
             const me: any = await meRes.json();
             if (me && me._id) this.user = me;
+            // If user is blocked, clear their cart
+            if (this.user && this.user.status === 'blocked') {
+              this.cart = [];
+              this.saveCart();
+            }
           } else if (meRes.status === 401 || meRes.status === 403 || meRes.status === 404) {
             // token invalid or user not found: clear local auth and continue
             this.auth.logout();
@@ -200,6 +205,13 @@ export class Dashboard implements OnInit {
   }
 
   addToCart(product: any, qty?: number) {
+    // Check if user is blocked
+    if (this.user && this.user.status === 'blocked') {
+      this.errorMessage = 'Your account has been blocked. Contact support for assistance.';
+      setTimeout(() => this.errorMessage = '', 5000);
+      return;
+    }
+
     const addQty = Math.max(1, Number(qty ?? product._qty ?? 1));
     const existing = this.cart.find(item => item._id === product._id);
     if (existing) {
@@ -216,12 +228,26 @@ export class Dashboard implements OnInit {
   }
 
   removeFromCart(productId: string) {
+    // Check if user is blocked
+    if (this.user && this.user.status === 'blocked') {
+      this.errorMessage = 'Your account has been blocked. Contact support for assistance.';
+      setTimeout(() => this.errorMessage = '', 5000);
+      return;
+    }
+
     this.cart = this.cart.filter(item => item._id !== productId);
     this.saveCart();
     try { this.cd.detectChanges(); } catch (e) {}
   }
 
   changeCartQty(productId: string, delta: number) {
+    // Check if user is blocked
+    if (this.user && this.user.status === 'blocked') {
+      this.errorMessage = 'Your account has been blocked. Contact support for assistance.';
+      setTimeout(() => this.errorMessage = '', 5000);
+      return;
+    }
+
     const idx = this.cart.findIndex(i => i._id === productId);
     if (idx === -1) return;
     const cur = Math.floor(Number(this.cart[idx].quantity) || 0);
@@ -232,6 +258,13 @@ export class Dashboard implements OnInit {
   }
 
   onCartQtyInput(productId: string, value: any) {
+    // Check if user is blocked
+    if (this.user && this.user.status === 'blocked') {
+      this.errorMessage = 'Your account has been blocked. Contact support for assistance.';
+      setTimeout(() => this.errorMessage = '', 5000);
+      return;
+    }
+
     const idx = this.cart.findIndex(i => i._id === productId);
     if (idx === -1) return;
     let n = Number(value);
@@ -398,6 +431,13 @@ export class Dashboard implements OnInit {
   }
 
   submitReview() {
+    // Check if user is blocked
+    if (this.user && this.user.status === 'blocked') {
+      this.errorMessage = 'Your account has been blocked. Contact support for assistance.';
+      setTimeout(() => this.errorMessage = '', 5000);
+      return;
+    }
+
     const token = this.auth.getToken();
     if (!token) {
       // shouldn't happen since add-review modal is only available to logged-in users

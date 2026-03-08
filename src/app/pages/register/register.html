@@ -28,7 +28,6 @@
           id="name"
           formControlName="name" 
           placeholder="Enter Full Name"
-          [disabled]="loading"
         />
         <div *ngIf="registerForm.get('name')?.touched && nameErrors" class="input-error">
           <small *ngIf="nameErrors['required']">Name is required</small>
@@ -44,7 +43,6 @@
           id="email"
           formControlName="email" 
           placeholder="Enter Email"
-          [disabled]="loading"
         />
         <div *ngIf="registerForm.get('email')?.touched && emailErrors" class="input-error">
           <small *ngIf="emailErrors['required']">Email is required</small>
@@ -59,7 +57,6 @@
           id="password"
           formControlName="password" 
           placeholder="Enter Password (mix of upper, lower, numbers)"
-          [disabled]="loading"
         />
         <div *ngIf="registerForm.get('password')?.touched && passwordErrors" class="input-error">
           <small *ngIf="passwordErrors['required']">Password is required</small>
@@ -75,7 +72,6 @@
           id="confirmPassword"
           formControlName="confirmPassword" 
           placeholder="Confirm Password"
-          [disabled]="loading"
         />
         <div *ngIf="registerForm.get('confirmPassword')?.touched && confirmPasswordErrors" class="input-error">
           <small *ngIf="confirmPasswordErrors['required']">Please confirm your password</small>

@@ -17,7 +17,6 @@
           formControlName="email" 
           placeholder="Enter admin email"
           autocomplete="email"
-          [disabled]="loading"
         />
         <div *ngIf="loginForm.get('email')?.touched && emailErrors" class="input-error">
           <small *ngIf="emailErrors['required']">Email is required</small>
@@ -33,7 +32,6 @@
           formControlName="password" 
           placeholder="Enter password"
           autocomplete="current-password"
-          [disabled]="loading"
         />
         <div *ngIf="loginForm.get('password')?.touched && passwordErrors" class="input-error">
           <small *ngIf="passwordErrors['required']">Password is required</small>

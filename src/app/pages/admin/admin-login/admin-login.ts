@@ -43,16 +43,28 @@ export class AdminLoginComponent implements OnInit {
     }
 
     this.loading = true;
-    const { email, password } = this.loginForm.value;
+    // Disable form controls when loading
+    this.loginForm.disable();
+    
+    const { email, password } = this.loginForm.getRawValue();
 
     this.authService.adminLogin(email, password).subscribe({
       next: (response: any) => {
         this.loading = false;
+        this.loginForm.enable();
 
         if (response && response.token) {
 
           // ✅ Save real backend token
           localStorage.setItem('admin-token', response.token);
+          // store admin info if available (backend may return name or user object)
+          if (response.name) {
+            localStorage.setItem('admin-name', response.name);
+            localStorage.setItem('admin-user', JSON.stringify({ name: response.name }));
+          } else if (response.user && response.user.name) {
+            localStorage.setItem('admin-name', response.user.name);
+            localStorage.setItem('admin-user', JSON.stringify(response.user));
+          }
 
           // ✅ Navigate to dashboard
           this.router.navigate(['/admin/dashboard']);
@@ -64,6 +76,7 @@ export class AdminLoginComponent implements OnInit {
 
       error: (error: any) => {
         this.loading = false;
+        this.loginForm.enable();
         this.errorMessage =
           error?.error?.message ||
           'Admin login failed. Please try again.';

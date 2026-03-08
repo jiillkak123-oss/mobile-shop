@@ -22,7 +22,6 @@
           id="email"
           formControlName="email" 
           placeholder="Enter Email"
-          [disabled]="loading"
         />
         <div *ngIf="loginForm.get('email')?.touched && emailErrors" class="input-error">
           <small *ngIf="emailErrors['required']">Email is required</small>
@@ -37,7 +36,6 @@
           id="password"
           formControlName="password" 
           placeholder="Enter Password"
-          [disabled]="loading"
         />
         <div *ngIf="loginForm.get('password')?.touched && passwordErrors" class="input-error">
           <small *ngIf="passwordErrors['required']">Password is required</small>

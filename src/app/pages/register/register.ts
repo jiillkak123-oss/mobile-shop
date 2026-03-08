@@ -84,11 +84,14 @@ export class Register implements OnInit {
     }
 
     this.loading = true;
-    const { name, email, password } = this.registerForm.value;
+    // Disable form controls when loading to avoid 'changed after checked' errors
+    this.registerForm.disable();
+    const { name, email, password } = this.registerForm.getRawValue();
 
     this.authService.register(name, email, password).subscribe(
       (response: any) => {
         this.loading = false;
+        this.registerForm.enable();
         this.successMessage = 'Registration Successful. Please login.';
         setTimeout(() => {
           this.router.navigate(['/login']);
@@ -96,6 +99,7 @@ export class Register implements OnInit {
       },
       (error: any) => {
         this.loading = false;
+        this.registerForm.enable();
         this.serverError = error.error?.error || 'Registration failed';
       }
     );

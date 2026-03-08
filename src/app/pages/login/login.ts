@@ -45,11 +45,14 @@ export class Login implements OnInit {
     }
 
     this.loading = true;
-    const { email, password } = this.loginForm.value;
+    // Disable form controls when loading to avoid 'changed after checked' errors
+    this.loginForm.disable();
+    const { email, password } = this.loginForm.getRawValue();
 
     this.authService.login(email, password).subscribe(
       (response: any) => {
         this.loading = false;
+        this.loginForm.enable();
         const user = response?.user || response;
         const token = response?.token || (response?.user && response.user.token) || null;
         if (user) {
@@ -63,6 +66,7 @@ export class Login implements OnInit {
       },
       (error: any) => {
         this.loading = false;
+        this.loginForm.enable();
         this.serverError = error.error?.error || error.error?.message || 'Login failed';
       }
     );

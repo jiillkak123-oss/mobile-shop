@@ -97,7 +97,43 @@
 
     <!-- Content Area -->
     <div class="content-area">
-   
+      <!-- Dashboard KPIs -->
+      <div *ngIf="activeNav === 'dashboard'" class="kpi-section">
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <h3>Total Revenue</h3>
+            <span class="kpi-icon">💰</span>
+          </div>
+          <div class="kpi-value">{{ formatCurrency(revenueData.totalRevenue) }}</div>
+          <div class="kpi-change" [ngClass]="revenueData.revenueGrowth > 0 ? 'positive' : revenueData.revenueGrowth < 0 ? 'negative' : ''">
+            {{ revenueData.revenueGrowth > 0 ? '↑' : revenueData.revenueGrowth < 0 ? '↓' : '→' }} {{ revenueData.revenueGrowth | number:'1.0-2' }}%
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <h3>Total Orders</h3>
+            <span class="kpi-icon">🛒</span>
+          </div>
+          <div class="kpi-value">{{ revenueData.totalOrders }}</div>
+          <div class="kpi-change">Completed {{ revenueData.completedOrders }}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <h3>Avg. Order Value</h3>
+            <span class="kpi-icon">📊</span>
+          </div>
+          <div class="kpi-value">{{ formatCurrency(revenueData.averageOrderValue) }}</div>
+          <div class="kpi-change">Per order</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <h3>Completed Orders</h3>
+            <span class="kpi-icon">✅</span>
+          </div>
+          <div class="kpi-value">{{ revenueData.completedOrders }}</div>
+          <div class="kpi-change">{{ revenueData.completedOrders }} done</div>
+        </div>
+      </div>
 
       <!-- Charts and Data Section -->
       <section class="analytics-section">
@@ -107,6 +143,48 @@
             <h2>Recent Orders</h2>
             <a href="#" class="view-all" (click)="navigateToSection('orders'); $event.preventDefault()">View All →</a>
           </div>
+          <p *ngIf="activeNav === 'orders'" class="record-count">{{ filteredOrders.length }} order{{ filteredOrders.length===1?'':'s' }}</p>
+
+          <!-- Order Filters (show only when viewing all orders) -->
+          <div *ngIf="activeNav === 'orders'" class="orders-filters">
+            <div class="filter-search">
+              <input 
+                type="text" 
+                [(ngModel)]="ordersSearchQuery" 
+                (ngModelChange)="applyOrderFilters()"
+                name="ordersSearchQuery"
+                placeholder="Search by Order ID, Customer, Email, or Product..."
+                autocomplete="off">
+              <span class="search-icon">🔍</span>
+            </div>
+            
+            <div class="filter-controls">
+              <select [(ngModel)]="ordersFilterStatus" 
+                      (ngModelChange)="applyOrderFilters()"
+                      name="ordersFilterStatus"
+                      class="filter-select">
+                <option value="all">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="completed">Completed</option>
+              </select>
+
+              <select [(ngModel)]="ordersSortBy" 
+                      (ngModelChange)="applyOrderFilters()"
+                      name="ordersSortBy"
+                      class="filter-select">
+                <option value="date">Sort by Date</option>
+                <option value="amount">Sort by Amount</option>
+              </select>
+
+              <button class="sort-toggle-btn" 
+                      (click)="ordersSortOrder = ordersSortOrder === 'desc' ? 'asc' : 'desc'; applyOrderFilters()"
+                      type="button"
+                      [title]="'Sort ' + (ordersSortOrder === 'desc' ? 'ascending' : 'descending')">
+                {{ ordersSortOrder === 'desc' ? '⬇️ Descending' : '⬆️ Ascending' }}
+              </button>
+            </div>
+          </div>
+
           <div class="orders-table">
             <table>
               <thead>
@@ -119,34 +197,50 @@
                   <th class="date-col">Date</th>
                 </tr>
               </thead>
-    <tbody>
-  <tr *ngFor="let order of displayedOrders">
-    <td class="order-id-col">#{{ order._id?.slice(-6) }}</td>
-    <td class="customer-col">{{ order.user?.name || order.user?.email || 'Guest' }}</td>
-    <td class="product-col">
-      <span *ngIf="order.items && order.items.length > 0">
-        <div *ngFor="let item of order.items" class="order-item-line">
-          {{ item.product?.title || item.product?.name || item.product }} <small class="muted">(Qty: {{ item.quantity }})</small>
-        </div>
-      </span>
-      <span *ngIf="!order.items || order.items.length === 0">-</span>
-    </td>
-    <td class="amount-col">₹{{ order.totalPrice | number:'1.2-2' }}</td>
-    <td class="status-col">
-      <span class="status" [ngClass]="order.status ? (order.status | lowercase) : 'pending'">{{ order.status || 'Pending' }}</span>
-      <button 
-        *ngIf="order.status !== 'Completed'" 
-        class="btn-small"
-        (click)="changeOrderStatus(order._id, 'Completed')">
-        Mark as Completed
-      </button>
-    </td>
-    <td class="date-col">{{ order.createdAt | date:'MMM d, y, h:mm a' }}</td>
-  </tr>
-  <tr *ngIf="displayedOrders.length === 0">
-    <td colspan="6" class="no-data">No orders found</td>
-  </tr>
-</tbody>
+              <tbody>
+                <tr *ngFor="let order of displayedOrders">
+                  <td class="order-id-col">#{{ order._id?.slice(-6) }}</td>
+                  <td class="customer-col">{{ order.user?.name || order.user?.email || 'Guest' }}</td>
+                  <td class="product-col">
+                    <span *ngIf="order.items && order.items.length > 0">
+                      <div *ngFor="let item of order.items" class="order-item-line">
+                        {{ item.product?.title || item.product?.name || item.product }} <small class="muted">(Qty: {{ item.quantity }})</small>
+                      </div>
+                    </span>
+                    <span *ngIf="!order.items || order.items.length === 0">-</span>
+                  </td>
+                  <td class="amount-col">₹{{ order.totalPrice | number:'1.2-2' }}</td>
+                  <td class="status-col">
+                    <div class="order-status-container">
+                      <span class="status-badge" [ngClass]="order.status ? (order.status | lowercase) : 'pending'">
+                        {{ order.status || 'Pending' }}
+                      </span>
+                      <div class="order-actions">
+                        <select 
+                          *ngIf="((order.status || '') | lowercase) !== 'completed'"
+                          class="status-select"
+                          [value]="order.status || 'pending'"
+                          (change)="changeOrderStatus(order._id, $event)"
+                          title="Change order status">
+                          <option value="pending" [selected]="order.status === 'pending' || !order.status">Pending</option>
+                          <option value="completed" [selected]="((order.status || '') | lowercase) === 'completed'">Completed</option>
+                        </select>
+                        <button 
+                          *ngIf="((order.status || '') | lowercase) === 'completed'"
+                          class="btn-action-view"
+                          (click)="viewOrderDetails(order)"
+                          title="View order details">
+                          👁️ View
+                        </button>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="date-col">{{ order.createdAt | date:'MMM d, y, h:mm a' }}</td>
+                </tr>
+                <tr *ngIf="displayedOrders.length === 0">
+                  <td colspan="6" class="no-data">{{ ordersSearchQuery ? 'No orders matching your search' : 'No orders found' }}</td>
+                </tr>
+              </tbody>
             </table>
           </div>
         </div>
@@ -161,6 +255,7 @@
             <p>Loading products...</p>
           </div>
           <div class="products-list" *ngIf="!isLoadingProducts">
+            <p class="record-count" *ngIf="activeNav === 'products'">{{ filteredProducts.length }} product{{ filteredProducts.length===1?'':'s' }}</p>
             <div *ngFor="let p of filteredProducts | slice:0:10" class="product-item">
               <div class="product-thumb">
                 <img *ngIf="p.image" [src]="p.image" alt="{{p.title}}" />
@@ -185,7 +280,14 @@
         <div class="data-card" *ngIf="activeNav === 'users'">
           <div class="card-header">
             <h2>👥 User Management</h2>
-            <button class="btn-primary" (click)="quickAction('add-user')" type="button">+ Add User</button>
+            <button class="btn-primary" (click)="openAddUserModal()" type="button">
+              <span>+</span>
+              <span>Add User</span>
+            </button>
+          </div>
+          <!-- Blocking Info Banner -->
+          <div class="info-banner users-info">
+            <p><strong>ℹ️ Info:</strong> Blocked users cannot purchase products. Inactive users are restricted but not fully blocked. Active users can place orders normally.</p>
           </div>
           <div class="users-table-wrapper">
             <table class="users-table">
@@ -201,16 +303,28 @@
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let user of users">
+                <tr *ngFor="let user of paginatedUsers"
+                    [class.inactive-row]="user.status === 'inactive'"
+                    [class.blocked-row]="user.status === 'blocked'">
                   <td>{{ user._id ? user._id.substring(0, 8) : 'N/A' }}</td>
                   <td>{{ user.name || 'N/A' }}</td>
                   <td>{{ user.email || 'N/A' }}</td>
                   <td><span class="badge" [ngClass]="user.role === 'admin' ? 'badge-admin' : 'badge-user'">{{ user.role || 'User' }}</span></td>
-                  <td><span class="status-badge" [ngClass]="user.status === 'active' ? 'active' : 'inactive'">{{ (user.status || 'inactive') | uppercase }}</span></td>
+                  <td>
+                    <span class="status-badge"
+                          [ngClass]="user.status === 'active' ? 'active' : user.status === 'blocked' ? 'blocked' : 'inactive'">
+                      {{ (user.status || 'inactive') | uppercase }}
+                    </span>
+                  </td>
                   <td>{{ user.createdAt ? (user.createdAt | date:'short') : 'N/A' }}</td>
                   <td>
                     <button class="btn-action edit" type="button" (click)="editUser(user)">✏️</button>
-                    <button class="btn-action delete" type="button" (click)="deleteUser(user._id)">🗑️</button>
+                    <button class="btn-action status-toggle" type="button"
+                            (click)="changeUserStatus(user._id, user.status === 'active' ? 'inactive' : user.status === 'inactive' ? 'blocked' : 'active')"
+                            [title]="user.status === 'active' ? 'Deactivate user' : user.status === 'inactive' ? 'Block user permanently' : 'Reactivate user'">
+                      <span>{{ user.status === 'active' ? '🚫 Deactivate' : user.status === 'inactive' ? '⛔ Block' : '✅ Activate' }}</span>
+                    </button>
+                    <button class="btn-action delete" type="button" (click)="deleteUser(user)">🗑️</button>
                   </td>
                 </tr>
                 <tr *ngIf="users.length === 0">
@@ -220,13 +334,11 @@
             </table>
           </div>
           <div class="table-footer">
-            <p>Showing 1-3 of 187 users</p>
+            <p>Showing {{ (currentUserPage - 1) * usersPerPage + 1 }}-{{ Math.min(currentUserPage * usersPerPage, totalUsers) }} of {{ totalUsers }} users</p>
             <div class="pagination">
-              <button type="button" class="page-btn">Previous</button>
-              <button type="button" class="page-btn active">1</button>
-              <button type="button" class="page-btn">2</button>
-              <button type="button" class="page-btn">3</button>
-              <button type="button" class="page-btn">Next</button>
+              <button type="button" class="page-btn" (click)="prevUserPage()" [disabled]="currentUserPage === 1">Previous</button>
+              <button *ngFor="let page of getVisiblePageNumbers()" type="button" class="page-btn" [class.active]="page === currentUserPage" (click)="goToUserPage(page)">{{ page }}</button>
+              <button type="button" class="page-btn" (click)="nextUserPage()" [disabled]="currentUserPage === getTotalUserPages()">Next</button>
             </div>
           </div>
         </div>
@@ -371,6 +483,7 @@
             </div>
           </div>
           <div class="reviews-container">
+            <p class="record-count" *ngIf="activeNav === 'reviews'">{{ filteredReviews.length }} review{{ filteredReviews.length===1?'':'s' }}</p>
             <div *ngIf="filteredReviews.length === 0" class="no-data">No reviews yet</div>
             <div *ngFor="let r of filteredReviews" class="review-item" [class.negative]="r.rating <= 2">
               <div class="review-header">
@@ -433,10 +546,6 @@
           <button class="action-btn" (click)="openAddProductModal()" type="button">
             <span class="btn-icon">➕</span>
             <span>Add Product</span>
-          </button>
-          <button class="action-btn" (click)="openAddUserModal()" type="button">
-            <span class="btn-icon">👤</span>
-            <span>Add User</span>
           </button>
           <button class="action-btn" (click)="openReportModal()" type="button">
             <span class="btn-icon">📊</span>
@@ -525,29 +634,34 @@
   <div *ngIf="showAddUserModal" class="modal-overlay" (click)="closeAddUserModal()">
     <div class="modal" (click)="$event.stopPropagation()">
       <div class="modal-header">
-        <h2>{{ editingUserId ? '✏️ Edit User' : '👤 Add New User' }}</h2>
-        <button class="close-btn" (click)="closeAddUserModal()" type="button">✕</button>
+        <h2>
+          {{ editingUserId ? '✏️ Edit User' : '👤 Add New User' }}
+          <span *ngIf="isSubmittingUser && !editingUserId" class="loading-spinner">⏳</span>
+        </h2>
+        <button class="close-btn" (click)="closeAddUserModal()" type="button" [disabled]="isSubmittingUser && !editingUserId">✕</button>
       </div>
       <div class="modal-body">
+        <div *ngIf="errorMessage" class="message error-message small-message">{{ errorMessage }}</div>
+        <div *ngIf="successMessage" class="message success-message small-message">{{ successMessage }}</div>
         <div class="form-group">
           <label for="userName">User Name *</label>
-          <input id="userName" type="text" [(ngModel)]="userForm.name" name="userName" placeholder="Enter user name" (keydown.enter)="$event.preventDefault()" />
+          <input id="userName" type="text" [(ngModel)]="userForm.name" name="userName" placeholder="Enter user name" (keydown.enter)="$event.preventDefault()" [disabled]="isSubmittingUser && !editingUserId" />
         </div>
         <div class="form-group">
           <label for="userEmail">Email Address *</label>
-          <input id="userEmail" type="email" [(ngModel)]="userForm.email" name="userEmail" placeholder="user@example.com" (keydown.enter)="$event.preventDefault()" />
+          <input id="userEmail" type="email" [(ngModel)]="userForm.email" name="userEmail" placeholder="user@example.com" (keydown.enter)="$event.preventDefault()" [disabled]="isSubmittingUser && !editingUserId" />
         </div>
         <div class="form-row">
           <div class="form-group">
             <label for="userRole">Role *</label>
-            <select id="userRole" [(ngModel)]="userForm.role" name="userRole">
+            <select id="userRole" [(ngModel)]="userForm.role" name="userRole" [disabled]="isSubmittingUser && !editingUserId">
               <option value="user">User</option>
               <option value="admin">Admin</option>
             </select>
           </div>
           <div class="form-group">
             <label for="userStatus">Status *</label>
-            <select id="userStatus" [(ngModel)]="userForm.status" name="userStatus">
+            <select id="userStatus" [(ngModel)]="userForm.status" name="userStatus" [disabled]="isSubmittingUser && !editingUserId">
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
               <option value="blocked">Blocked</option>
@@ -556,8 +670,41 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn-cancel" (click)="closeAddUserModal()" type="button">Cancel</button>
-        <button class="btn-submit" (click)="submitAddUser()" type="button">{{ editingUserId ? 'Update User' : 'Add User' }}</button>
+        <button class="btn-cancel" (click)="closeAddUserModal()" type="button" [disabled]="isSubmittingUser && !editingUserId">Cancel</button>
+        <button class="btn-submit" (click)="submitAddUser()" type="button" [disabled]="(isSubmittingUser && !editingUserId) || !userForm.name || !userForm.email">
+          {{ (isSubmittingUser && !editingUserId) ? (editingUserId ? 'Updating...' : 'Adding...') : (editingUserId ? 'Update User' : 'Add User') }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div *ngIf="showDeleteConfirmModal" class="modal-overlay" (click)="closeDeleteConfirmModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>⚠️ Confirm Delete</h2>
+        <button class="close-btn" (click)="closeDeleteConfirmModal()" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="delete-confirm-content">
+          <div class="delete-icon">🗑️</div>
+          <p class="delete-message">
+            Are you sure you want to delete the user <strong>{{ userToDelete?.name }}</strong> ({{ userToDelete?.email }})?
+          </p>
+          <p class="delete-warning">
+            This action cannot be undone. All user data, orders, and reviews will be permanently removed.
+          </p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" (click)="closeDeleteConfirmModal()" type="button">
+          <span>❌</span>
+          <span>Cancel</span>
+        </button>
+        <button class="btn-delete-confirm" (click)="confirmDeleteUser()" type="button">
+          <span>🗑️</span>
+          <span>Delete User</span>
+        </button>
       </div>
     </div>
   </div>

@@ -17,7 +17,6 @@
           formControlName="name" 
           placeholder="Enter full name"
           autocomplete="name"
-          [disabled]="loading"
         />
         <div *ngIf="registerForm.get('name')?.touched && nameErrors" class="input-error">
           <small *ngIf="nameErrors['required']">Name is required</small>
@@ -34,7 +33,6 @@
           formControlName="email" 
           placeholder="Enter email"
           autocomplete="email"
-          [disabled]="loading"
         />
         <div *ngIf="registerForm.get('email')?.touched && emailErrors" class="input-error">
           <small *ngIf="emailErrors['required']">Email is required</small>
@@ -50,7 +48,6 @@
           formControlName="password" 
           placeholder="Enter password (min 6 characters, uppercase, lowercase, numbers)"
           autocomplete="new-password"
-          [disabled]="loading"
         />
         <div *ngIf="registerForm.get('password')?.touched && passwordErrors" class="input-error">
           <small *ngIf="passwordErrors['required']">Password is required</small>
@@ -67,7 +64,6 @@
           formControlName="confirmPassword" 
           placeholder="Confirm password"
           autocomplete="new-password"
-          [disabled]="loading"
         />
         <div *ngIf="registerForm.get('confirmPassword')?.touched && confirmPasswordErrors" class="input-error">
           <small *ngIf="confirmPasswordErrors['required']">Please confirm your password</small>
@@ -85,7 +81,6 @@
           formControlName="masterAdminCode" 
           placeholder="Enter master admin code (min 4 characters)"
           autocomplete="off"
-          [disabled]="loading"
         />
         <div *ngIf="registerForm.get('masterAdminCode')?.touched && masterAdminCodeErrors" class="input-error">
           <small *ngIf="masterAdminCodeErrors['required']">Master admin code is required</small>

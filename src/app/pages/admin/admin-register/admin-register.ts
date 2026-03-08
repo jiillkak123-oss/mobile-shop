@@ -79,11 +79,14 @@ export class AdminRegisterComponent implements OnInit {
     }
 
     this.loading = true;
-    const { name, email, password, masterAdminCode } = this.registerForm.value;
+    // Disable form controls when loading to avoid 'changed after checked' errors
+    this.registerForm.disable();
+    const { name, email, password, masterAdminCode } = this.registerForm.getRawValue();
 
     this.authService.adminRegister(name, email, password, masterAdminCode).subscribe(
       (response: any) => {
         this.loading = false;
+        this.registerForm.enable();
         this.successMessage = 'Admin registration successful. Redirecting to login...';
         setTimeout(() => {
           this.router.navigate(['/admin/login']);
@@ -91,6 +94,7 @@ export class AdminRegisterComponent implements OnInit {
       },
       (error: any) => {
         this.loading = false;
+        this.registerForm.enable();
         this.errorMessage = error.error?.error || 'Admin registration failed. Please try again.';
         this.registerForm.patchValue({
           password: '',

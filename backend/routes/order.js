@@ -2,14 +2,45 @@
 const express = require('express');
 const router = express.Router();
 const Order = require('../models/order');
+const User = require('../models/user');
+
+// middleware to verify user token
+const verifyUserToken = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'No token provided' });
+  
+  try {
+    const decoded = require('jsonwebtoken').verify(token, process.env.JWT_SECRET || 'change-me-secret');
+    req.userId = decoded.id || decoded.userId;
+    next();
+  } catch (err) {
+    res.status(401).json({ message: 'Invalid token' });
+  }
+};
 
 // ---------------- CREATE ORDER ----------------
-router.post('/create', async (req, res) => {
+router.post('/create', verifyUserToken, async (req, res) => {
   try {
     const { user, items, totalPrice, status } = req.body;
 
     if (!user || !items || items.length === 0) {
       return res.status(400).json({ message: "Invalid order data" });
+    }
+
+    // Check if user exists and fetch their status
+    const userData = await User.findById(user);
+    if (!userData) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Prevent blocked users from creating orders
+    if (userData.status === 'blocked') {
+      return res.status(403).json({ message: "Your account has been blocked. Contact support for assistance." });
+    }
+
+    // Prevent inactive users from creating orders
+    if (userData.status === 'inactive') {
+      return res.status(403).json({ message: "Your account is inactive. Please contact support." });
     }
 
     const newOrder = new Order({

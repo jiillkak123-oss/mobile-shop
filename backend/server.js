@@ -373,6 +373,22 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Order items required' });
     }
 
+    // Fetch user to check status
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Prevent blocked users from creating orders
+    if (user.status === 'blocked') {
+      return res.status(403).json({ error: 'Your account has been blocked. Contact support for assistance.' });
+    }
+
+    // Prevent inactive users from creating orders
+    if (user.status === 'inactive') {
+      return res.status(403).json({ error: 'Your account is inactive. Please contact support.' });
+    }
+
     const newOrder = new Order({
       user: req.user.id,
       items,
@@ -605,6 +621,22 @@ app.post('/api/reviews', authenticateToken, async (req, res) => {
   try {
     const { productId, rating, text } = req.body;
     if (!rating || rating < 1 || rating > 5) return res.status(400).json({ error: 'Rating must be 1-5' });
+
+    // Fetch user to check status
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Prevent blocked users from creating reviews
+    if (user.status === 'blocked') {
+      return res.status(403).json({ error: 'Your account has been blocked. Contact support for assistance.' });
+    }
+
+    // Prevent inactive users from creating reviews
+    if (user.status === 'inactive') {
+      return res.status(403).json({ error: 'Your account is inactive. Please contact support.' });
+    }
 
     const review = new Review({
       user: req.user.id,
